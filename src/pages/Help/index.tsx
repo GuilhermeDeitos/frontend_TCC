@@ -1,3 +1,4 @@
+import { BlueTitleCard } from "../../components/BlueTitleCard";
 import { Footer } from "../../components/Footer";
 import { Header } from "../../components/Header"
 import { useState } from "react";
@@ -90,15 +91,10 @@ export function HelpPage(){
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16 sm:py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">Central de Ajuda</h1>
-          <p className="text-lg sm:text-xl text-blue-100 max-w-2xl mx-auto">
-            Encontre aqui respostas para as dúvidas mais comuns sobre o portal, os dados e as funcionalidades oferecidas.
-          </p>
-        </div>
-      </div>
+      <BlueTitleCard
+        title="Central de Ajuda"
+        subtitle="Encontre aqui respostas para as dúvidas mais comuns sobre o portal, os dados e as funcionalidades oferecidas."
+      />
 
       <div className="flex-grow bg-gray-50 py-12 sm:py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

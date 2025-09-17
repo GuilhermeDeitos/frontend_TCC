@@ -17,7 +17,7 @@ export function Card({ title, description, buttonText, link }: CardProps) {
       <p className="text-gray-700 mb-4 text-justify">{description}</p>
       </div>
       <a href={link} className="mt-auto block">
-      <button className="bg-blue-500 text-white px-4 py-2 rounded w-full hover:bg-blue-600 transition-colors">
+      <button className="bg-blue-500 border-1 border-blue-500 text-white px-4 py-2 rounded w-full hover:bg-white hover:text-blue-500 transition-colors cursor-pointer">
         {buttonText}
       </button>
       </a>

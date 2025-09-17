@@ -105,10 +105,10 @@ export function AboutPage() {
                 <div className="bg-gray-50 p-6 rounded-lg border-l-4 border-blue-600">
                   <h3 className="font-bold text-gray-900 mb-2 flex items-center">
                     <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-3">1</span>
-                    Coleta Automatizada (Web Scraping)
+                    Coleta Automatizada (<i>Web Scraping</i>)
                   </h3>
                   <p className="text-gray-700">
-                    Um robô de software (crawler), desenvolvido em Python com a biblioteca <strong>Selenium</strong>, navega automaticamente pelo Portal da Transparência do Paraná para extrair os dados brutos de despesas.
+                    Um robô de software (<i>crawler</i>), desenvolvido em Python com a biblioteca <strong>Selenium</strong>, navega automaticamente pelo Portal da Transparência do Paraná para extrair os dados brutos de despesas.
                   </p>
                 </div>
                 
@@ -128,7 +128,7 @@ export function AboutPage() {
                     Disponibilização via API
                   </h3>
                   <p className="text-gray-700">
-                    As informações tratadas e corrigidas são expostas por meio de duas APIs REST, construídas com <strong>FastAPI</strong>. Uma API é responsável pelo processo de scraping e a outra pelo tratamento e disponibilização dos dados já corrigidos pelo IPCA.
+                    As informações tratadas e corrigidas são expostas por meio de duas APIs REST, construídas com <strong>FastAPI</strong>. Uma API é responsável pelo processo de <i>scraping</i> e a outra pelo tratamento e disponibilização dos dados já corrigidos pelo IPCA.
                   </p>
                 </div>
               </div>
