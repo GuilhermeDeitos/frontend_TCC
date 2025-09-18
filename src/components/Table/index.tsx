@@ -1,25 +1,48 @@
 import { useMemo, useState } from "react";
 import { InputField } from "../Input";
 import { SelectField } from "../Select";
-import { converteNotacaoCientifica } from "../../utils/funcoesAuxiliares";
 
-interface TableProps{
-  items: {
-    id: number;
-    data: string;
-    valor: number;
-  }[];
-  columns: string[];
+// Definir uma interface genérica para itens da tabela
+interface TableProps {
+  items: any[]; // Itens podem ter qualquer estrutura
+  columns: string[]; // Nomes das colunas
   itemsPerPage?: number;
+  // Opcionalmente, mapeamento de propriedades para colunas
+  keyMap?: Record<string, string>; 
 }
 
-export function Table({ items, columns, itemsPerPage = 10 }: TableProps) {
-  const [sortConfig, setSortConfig] = useState<{ key: keyof typeof items[0]; direction: "ascending" | "descending" } | null>(null);
+export function Table({ items, columns, itemsPerPage = 10, keyMap }: TableProps) {
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "ascending" | "descending" } | null>(null);
   const [filterDate, setFilterDate] = useState("");
   const [filterType, setFilterType] = useState<"all" | "month" | "year">("all");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const requestSort = (key: keyof typeof items[0]) => {
+  // Função para obter o valor de uma propriedade do item
+  const getItemValue = (item: any, columnIndex: number) => {
+    const columnName = columns[columnIndex];
+    
+    // Se temos um keyMap, usar ele para acessar a propriedade
+    if (keyMap && keyMap[columnName]) {
+      return item[keyMap[columnName]];
+    }
+
+    // Caso contrário, tentar acessar com base no índice
+    if (columnIndex === 0) {
+      return item.universidade || item.data || '';
+    } else if (columnIndex === 1) {
+      return item.data || '';
+    } else {
+      // Para outras colunas, tentar um acesso direto ao objeto
+      const keyGuess = columnName.toLowerCase().replace(/\s+/g, '_').replace(/[()$]/g, '');
+      return item[keyGuess] || '';
+    }
+  };
+
+  const requestSort = (columnIndex: number) => {
+    // Determinar a chave de ordenação
+    const columnName = columns[columnIndex];
+    const key = keyMap ? keyMap[columnName] : (columnIndex === 0 ? 'universidade' : (columnIndex === 1 ? 'data' : 'valor'));
+    
     let direction: "ascending" | "descending" = "ascending";
     if (sortConfig && sortConfig.key === key && sortConfig.direction === "ascending") {
       direction = "descending";
@@ -33,21 +56,46 @@ export function Table({ items, columns, itemsPerPage = 10 }: TableProps) {
     if (!sortConfig) return items;
 
     return [...items].sort((a, b) => {
-      const aValue = a[sortConfig.key];
-      const bValue = b[sortConfig.key];
+      let aValue, bValue;
+      
+      if (keyMap && sortConfig.key) {
+        aValue = a[sortConfig.key];
+        bValue = b[sortConfig.key];
+      } else {
+        // Fallback para comportamento anterior
+        aValue = sortConfig.key === 'universidade' ? a.universidade : (sortConfig.key === 'data' ? a.data : a.valor);
+        bValue = sortConfig.key === 'universidade' ? b.universidade : (sortConfig.key === 'data' ? b.data : b.valor);
+      }
+      
+      // Tratamento para strings que contêm valores monetários (remover R$, ., etc)
+      if (typeof aValue === 'string' && aValue.includes('R$')) {
+        aValue = parseFloat(aValue.replace(/[^\d,-]/g, '').replace(',', '.'));
+      }
+      
+      if (typeof bValue === 'string' && bValue.includes('R$')) {
+        bValue = parseFloat(bValue.replace(/[^\d,-]/g, '').replace(',', '.'));
+      }
       
       // Tratamento especial para datas
-      if (sortConfig.key === 'data') {
-        const dateA = new Date(aValue as string);
-        const dateB = new Date(bValue as string);
+      if (sortConfig.key === 'data' || (typeof aValue === 'string' && typeof bValue === 'string' && 
+          (aValue.includes('/') || bValue.includes('/')))) {
+        // Extrair ano e mês para comparação
+        const partsA = String(aValue).split('/');
+        const partsB = String(bValue).split('/');
         
-        if (dateA < dateB) {
-          return sortConfig.direction === "ascending" ? -1 : 1;
+        if (partsA.length > 1 && partsB.length > 1) {
+          // Formato MM/AAAA
+          const dateA = new Date(parseInt(partsA[1]), parseInt(partsA[0]) - 1);
+          const dateB = new Date(parseInt(partsB[1]), parseInt(partsB[0]) - 1);
+          
+          if (dateA < dateB) {
+            return sortConfig.direction === "ascending" ? -1 : 1;
+          }
+          if (dateA > dateB) {
+            return sortConfig.direction === "ascending" ? 1 : -1;
+          }
+          return 0;
         }
-        if (dateA > dateB) {
-          return sortConfig.direction === "ascending" ? 1 : -1;
-        }
-        return 0;
       }
       
       // Tratamento para outros tipos
@@ -59,14 +107,33 @@ export function Table({ items, columns, itemsPerPage = 10 }: TableProps) {
       }
       return 0;
     });
-  }, [items, sortConfig]);
+  }, [items, sortConfig, keyMap]);
 
   // Filtro otimizado com useMemo
   const filteredItems = useMemo(() => {
     if (!filterDate || filterType === "all") return sortedItems;
 
     return sortedItems.filter((item) => {
-      const itemDate = item.data.split("/");
+      // Tentar encontrar o campo que contém a data
+      let itemDate;
+      
+      if (keyMap) {
+        const dateFieldKey = Object.keys(keyMap).find(k => 
+          keyMap[k] === 'data' || k.toLowerCase().includes('período')
+        );
+        
+        if (dateFieldKey && item[keyMap[dateFieldKey]]) {
+          itemDate = String(item[keyMap[dateFieldKey]]).split("/");
+        }
+      }
+      
+      // Fallback para comportamento padrão
+      if (!itemDate && item.data) {
+        itemDate = String(item.data).split("/");
+      }
+      
+      if (!itemDate || itemDate.length < 2) return false;
+      
       const filterDateList = filterDate.split("-");
 
       if (filterType === "month") {
@@ -75,12 +142,12 @@ export function Table({ items, columns, itemsPerPage = 10 }: TableProps) {
           itemDate[1] === filterDateList[0]
         );
       } else if (filterType === "year") {
-        return itemDate[1].includes(filterDateList[0]);
+        return itemDate[1] ? itemDate[1].includes(filterDateList[0]) : false;
       }
 
       return true;
     });
-  }, [sortedItems, filterDate, filterType]);
+  }, [sortedItems, filterDate, filterType, keyMap]);
 
   // Paginação otimizada com useMemo
   const paginationData = useMemo(() => {
@@ -94,8 +161,44 @@ export function Table({ items, columns, itemsPerPage = 10 }: TableProps) {
 
   const { totalPages, startIndex, endIndex, currentItems } = paginationData;
 
-  const getSortIcon = (columnKey: keyof typeof items[0]) => {
-    if (!sortConfig || sortConfig.key !== columnKey) {
+  // Navegar para uma página específica
+  const goToPage = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+  // Gerar array de números de página para exibição
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    if (currentPage <= 4) {
+      return [1, 2, 3, 4, 5, '...', totalPages];
+    }
+
+    if (currentPage >= totalPages - 3) {
+      return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+
+    return [
+      1, 
+      '...', 
+      currentPage - 1, 
+      currentPage, 
+      currentPage + 1,
+      '...', 
+      totalPages
+    ];
+  }, [currentPage, totalPages]);
+
+  // Ícone de ordenação
+  const getSortIcon = (columnIndex: number) => {
+    // Determinar a chave de ordenação
+    const columnName = columns[columnIndex];
+    const key = keyMap ? keyMap[columnName] : (columnIndex === 0 ? 'universidade' : (columnIndex === 1 ? 'data' : 'valor'));
+    
+    if (!sortConfig || sortConfig.key !== key) {
       return (
         <svg className="w-4 h-4 ml-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
@@ -118,116 +221,50 @@ export function Table({ items, columns, itemsPerPage = 10 }: TableProps) {
     );
   };
 
-
-  const goToPage = (page: number) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
-  };
-
-  // Geração de páginas otimizada com useMemo
-  const pageNumbers = useMemo(() => {
-    const pages = [];
-    const maxVisiblePages = 5;
-    
-    if (totalPages <= maxVisiblePages) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      if (currentPage <= 3) {
-        for (let i = 1; i <= 4; i++) {
-          pages.push(i);
-        }
-        pages.push('...');
-        pages.push(totalPages);
-      } else if (currentPage >= totalPages - 2) {
-        pages.push(1);
-        pages.push('...');
-        for (let i = totalPages - 3; i <= totalPages; i++) {
-          pages.push(i);
-        }
-      } else {
-        pages.push(1);
-        pages.push('...');
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
-          pages.push(i);
-        }
-        pages.push('...');
-        pages.push(totalPages);
-      }
-    }
-    
-    return pages;
-  }, [totalPages, currentPage]);
-
-  const clearFilter = () => {
-    setFilterDate("");
-    setFilterType("all");
-    setCurrentPage(1);
-  };
-
-  const handleFilterChange = (newFilterDate: string) => {
-    setFilterDate(newFilterDate);
-    setCurrentPage(1); // Reset para primeira página
-  };
-
-  const handleFilterTypeChange = (newFilterType: "all" | "month" | "year") => {
-    setFilterType(newFilterType);
-    setFilterDate(""); // Limpa o filtro anterior
-    setCurrentPage(1);
-  };
-
-
   return (
     <div className="w-full">
       {/* Header com filtros */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">
-            Dados da Tabela
-          </h3>
-          <p className="text-sm text-gray-500">
-            {filteredItems.length} de {items.length} registros
-            {(filterDate || filterType !== "all") && (
-              <button
-                onClick={clearFilter}
-                className="ml-2 text-blue-600 hover:text-blue-800 underline"
-              >
-                (limpar filtros)
-              </button>
-            )}
-          </p>
+      <div className="flex flex-col md:flex-row justify-between mb-4 gap-4">
+        <div className="flex items-center">
+          <span className="text-sm text-gray-500 mr-2">
+            Exibindo {Math.min(filteredItems.length, startIndex + 1)}-{Math.min(
+              filteredItems.length,
+              endIndex
+            )}{" "}
+            de {filteredItems.length} registros
+          </span>
         </div>
-        
-        {/* Controles de Filtro */}
-        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          <div className="flex items-center gap-2">
-            <SelectField
-              id="filter-type"
-              value={["all", "month", "year"].includes(filterType) ? filterType : "all"}
-              onChange={(e) => handleFilterTypeChange(e.target.value as "all" | "month" | "year")}
-              name="filter-type"
-              label="Filtrar por"
-              options={[
-                { value: "all", label: "Todos" },
-                { value: "month", label: "Mês/Ano" },
-                { value: "year", label: "Ano" }
-              ]}
-            />
-          </div>
-          
-          {filterType !== "all" && (
-            <div className="sm:max-w-xs">
-              <InputField
-                type={filterType === "month" ? "month" : "number"}
-                placeholder={filterType === "month" ? "Selecione mês/ano" : "Digite o ano"}
-                id="filter-input"
-                name="filter"
-                value={filterDate}
-                onChange={(e) => handleFilterChange(e.target.value)}
-                label={filterType === "month" ? "Mês/Ano" : "Ano"}
-              />
-            </div>
-          )}
+
+        <div className="flex flex-col sm:flex-row gap-2">
+          <SelectField
+            id="filterType"
+            name="filterType"
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value as any)}
+            options={[
+              { value: "all", label: "Todos os períodos" },
+              { value: "year", label: "Filtrar por ano" },
+              { value: "month", label: "Filtrar por mês/ano" },
+            ]}
+            className="w-40"
+          />
+
+          <InputField
+            id="filterDate"
+            name="filterDate"
+            type={filterType === "year" ? "number" : "month"}
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            disabled={filterType === "all"}
+            placeholder={
+              filterType === "year"
+                ? "Ano (ex: 2022)"
+                : filterType === "month"
+                ? "Mês/Ano"
+                : ""
+            }
+            className="w-40"
+          />
         </div>
       </div>
 
@@ -241,11 +278,11 @@ export function Table({ items, columns, itemsPerPage = 10 }: TableProps) {
                   <th 
                     key={column} 
                     className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
-                    onClick={() => requestSort(index === 0 ? 'data' : 'valor')}
+                    onClick={() => requestSort(index)}
                   >
                     <div className="flex items-center">
                       {column}
-                      {getSortIcon(index === 0 ? 'data' : 'valor')}
+                      {getSortIcon(index)}
                     </div>
                   </th>
                 ))}
@@ -272,22 +309,35 @@ export function Table({ items, columns, itemsPerPage = 10 }: TableProps) {
               ) : (
                 currentItems.map((item, index) => (
                   <tr 
-                    key={item.id} 
+                    key={item.id || index} 
                     className={`hover:bg-gray-50 transition-colors ${
                       index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
                     }`}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 w-2 h-2 bg-blue-600 rounded-full mr-3"></div>
-                        <span className="font-medium">{item.data}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                        {item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 20 })}
-                      </span>
-                    </td>
+                    {columns.map((column, colIndex) => {
+                      const cellValue = getItemValue(item, colIndex);
+                      
+                      return (
+                        <td key={colIndex} className="px-6 py-4 whitespace-nowrap text-sm">
+                          {colIndex === 0 ? (
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 w-2 h-2 bg-blue-600 rounded-full mr-3"></div>
+                              <span className="font-medium">
+                                {cellValue || '-'}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium 
+                              ${typeof cellValue === 'string' && cellValue.includes('R$') 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-gray-100 text-gray-800'}`}
+                            >
+                              {cellValue || '-'}
+                            </span>
+                          )}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))
               )}
@@ -296,138 +346,60 @@ export function Table({ items, columns, itemsPerPage = 10 }: TableProps) {
         </div>
         
         {/* Footer da tabela com paginação */}
-        {filteredItems.length > 0 && (
-          <div className="bg-gray-50 px-4 sm:px-6 py-3 border-t border-gray-200">
-            {/* Informações de registros - sempre visível */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="text-sm text-gray-500 text-center sm:text-left">
-                <span className="block sm:inline">
-                  Mostrando {startIndex + 1} a {Math.min(endIndex, filteredItems.length)} de {filteredItems.length} registros
-                </span>                
-              </div>
-              
-              {/* Controles de paginação */}
-              {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  {/* Indicador de página em mobile */}
-                  <div className="text-sm text-gray-500 sm:hidden">
-                    Página {currentPage} de {totalPages}
-                  </div>
-                  
-                  <div className="flex items-center justify-center w-full sm:w-auto">
-                    {/* Versão mobile: controles simplificados */}
-                    <div className="flex sm:hidden items-center space-x-2">
-                      <button
-                        onClick={() => goToPage(1)}
-                        disabled={currentPage === 1}
-                        className="p-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Primeira página"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                        </svg>
-                      </button>
-                      
-                      <button
-                        onClick={() => goToPage(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Anterior
-                      </button>
-                      
-                      <span className="px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-md min-w-[3rem] text-center">
-                        {currentPage}
-                      </span>
-                      
-                      <button
-                        onClick={() => goToPage(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                        className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Próxima
-                      </button>
-                      
-                      <button
-                        onClick={() => goToPage(totalPages)}
-                        disabled={currentPage === totalPages}
-                        className="p-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Última página"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                    </div>
-                    
-                    {/* Versão desktop: controles completos */}
-                    <div className="hidden sm:flex items-center space-x-2">
-                      <button
-                        onClick={() => goToPage(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className="px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Anterior
-                      </button>
-                      
-                      <div className="flex items-center space-x-1">
-                        {pageNumbers.map((page, index) => (
-                          <span key={index}>
-                            {page === '...' ? (
-                              <span className="px-3 py-1 text-sm text-gray-500">...</span>
-                            ) : (
-                              <button
-                                onClick={() => goToPage(page as number)}
-                                className={`px-3 py-1 text-sm font-medium rounded-md ${
-                                  currentPage === page
-                                    ? 'bg-blue-600 text-white'
-                                    : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
-                                }`}
-                              >
-                                {page}
-                              </button>
-                            )}
-                          </span>
-                        ))}
-                      </div>
-                      
-                      <button
-                        onClick={() => goToPage(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                        className="px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Próxima
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row items-center justify-between">
+            <div className="mb-4 sm:mb-0">
+              <p className="text-sm text-gray-700">
+                Página <span className="font-medium">{currentPage}</span> de{" "}
+                <span className="font-medium">{totalPages}</span>
+              </p>
             </div>
-            
-            {/* Input de navegação rápida apenas em desktop */}
-            {totalPages > 5 && (
-              <div className="hidden sm:flex items-center justify-center mt-3 pt-3 border-t border-gray-200">
-                <div className="flex items-center space-x-2 text-sm">
-                  <span className="text-gray-500">Ir para página:</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max={totalPages}
-                    value={currentPage}
-                    onChange={(e) => {
-                      const page = parseInt(e.target.value);
-                      if (page >= 1 && page <= totalPages) {
-                        goToPage(page);
-                      }
-                    }}
-                    className="w-16 px-2 py-1 text-center border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <span className="text-gray-500">de {totalPages}</span>
-                </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`${
+                  currentPage === 1
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-white text-gray-700 hover:bg-gray-50"
+                } px-3 py-2 border border-gray-300 rounded-md text-sm font-medium`}
+              >
+                Anterior
+              </button>
+
+              <div className="hidden md:flex space-x-1">
+                {pageNumbers.map((page, index) => (
+                  <button
+                    key={index}
+                    onClick={() => typeof page === "number" && goToPage(page)}
+                    className={`px-3 py-2 border text-sm font-medium rounded-md ${
+                      page === currentPage
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : page === "..."
+                        ? "bg-white text-gray-400 cursor-default"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                    }`}
+                    disabled={page === "..."}
+                  >
+                    {page}
+                  </button>
+                ))}
               </div>
-            )}
+
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className={`${
+                  currentPage === totalPages || totalPages === 0
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-white text-gray-700 hover:bg-gray-50"
+                } px-3 py-2 border border-gray-300 rounded-md text-sm font-medium`}
+              >
+                Próximo
+              </button>
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
