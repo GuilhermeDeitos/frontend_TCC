@@ -46,6 +46,16 @@ export function HelpPage(){
       question: "Quais são as universidades estaduais do Paraná cobertas pelo sistema?",
       answer: "O SAD-UEPR cobre as sete Universidades Estaduais de Ensino Superior (IEES) do Paraná: UEL (Universidade Estadual de Londrina), UEM (Universidade Estadual de Maringá), UEPG (Universidade Estadual de Ponta Grossa), UNIOESTE (Universidade Estadual do Oeste do Paraná), UNICENTRO (Universidade Estadual do Centro-Oeste), UENP (Universidade Estadual do Norte do Paraná) e UNESPAR (Universidade Estadual do Paraná)."
     },
+    {
+      category: "Entendendo os Dados",
+      question: "O que significam os diferentes campos financeiros nos resultados?",
+      answer: "Os resultados exibem diversos campos financeiros: 'Orçamento LOA' é o valor inicial alocado pela Lei Orçamentária Anual; 'Total Orçamentário' representa os recursos disponíveis após ajustes; 'Disponibilidade Orçamentária' é o que resta para uso; 'Empenhado', 'Liquidado' e 'Pago' são as etapas de execução do gasto. Campos com 'Até Mês' mostram valores acumulados até o período consultado, enquanto 'No Mês' exibe apenas o valor do mês específico. Todos os valores são atualizados monetariamente para permitir comparações justas."
+    },
+    {
+      category: "Entendendo os Dados",
+      question: "Por que os fatores de correção são diferentes para cada ano?",
+      answer: "O fator de correção monetária varia por ano porque representa o acúmulo da inflação entre o período original e o período de referência. Por exemplo, valores de 2010 precisam de um fator maior de correção que valores de 2020, pois houve mais inflação acumulada nesse período mais longo. Para cada ano consultado, o sistema aplica automaticamente o fator específico correspondente. Você pode visualizar os detalhes desses fatores clicando no botão 'Detalhes da Correção' que aparece nos resultados da consulta."
+    },
 
     // Como Usar o Portal
     {
@@ -63,6 +73,26 @@ export function HelpPage(){
       question: "Como usar a calculadora de correção monetária?",
       answer: "Na calculadora de IPCA, insira o valor original, a data inicial (quando o valor foi estabelecido) e a data final (para quando deseja corrigir o valor). O sistema automaticamente calculará o valor corrigido pela inflação oficial medida pelo IPCA, mostrando também o percentual de correção acumulado no período."
     },
+    {
+      category: "Como Usar o Portal",
+      question: "Como alternar entre diferentes visualizações dos resultados?",
+      answer: "Após realizar uma consulta, você verá duas opções principais na parte superior dos resultados: 'Tabela' e 'Gráfico'. Na visualização em tabela, você pode ordenar clicando nos cabeçalhos das colunas e filtrar usando os controles acima da tabela. Na visualização em gráfico, você tem opções adicionais de customização: escolha o tipo de comparação (entre universidades, entre anos ou evolução anual), selecione qual campo financeiro deseja comparar e escolha o tipo de gráfico (barras, linhas, pizza ou área) que melhor representa sua análise."
+    },
+    {
+      category: "Como Usar o Portal",
+      question: "Como filtrar e exportar os dados da consulta?",
+      answer: "Na visualização em tabela, você pode filtrar os dados por vários critérios: ano, universidade, função, grupo de natureza e origem de recursos. Isso ajuda a focar em informações específicas. Para exportar os resultados, use o botão 'Exportar' no canto superior direito da tela. Você pode escolher entre formatos como Excel, PDF, CSV ou JSON, selecionar quais colunas incluir e personalizar o título e subtítulo do relatório. Os arquivos exportados incluem automaticamente informações sobre a correção monetária aplicada."
+    },
+    {
+      category: "Como Usar o Portal",
+      question: "O que fazer quando alguns anos estão ausentes nos resultados?",
+      answer: "Se você receber um aviso sobre 'Anos ausentes' nos resultados, significa que o sistema não encontrou dados para determinados anos dentro do período solicitado. Isso pode ocorrer por indisponibilidade temporária dos dados no Portal da Transparência ou por mudanças na estrutura das informações. Recomendamos: 1) Refazer a consulta para verificar se foi um problema temporário; 2) Tentar consultar os anos problemáticos individualmente; 3) Verificar no Portal da Transparência do Paraná se os dados daquele período estão disponíveis. Mesmo com alguns anos ausentes, você ainda pode analisar os dados disponíveis."
+    },
+    {
+      category: "Como Usar o Portal",
+      question: "Como interpretar as diferentes opções de comparação nos gráficos?",
+      answer: "O sistema oferece três tipos principais de comparação gráfica: 1) 'Entre Universidades' - compara o desempenho das diferentes instituições para o mesmo indicador financeiro; 2) 'Entre Anos' - mostra a evolução temporal de um indicador, consolidando dados de todas as universidades por ano; 3) 'Evolução Anual' - apresenta dados detalhados por universidade e por ano, permitindo análise de tendências individuais. Essa última opção também permite filtrar por anos específicos para análises mais focadas. Cada tipo de visualização é adequado para responder diferentes perguntas analíticas."
+    },
 
     // Para Desenvolvedores e Pesquisadores
     {
@@ -79,6 +109,16 @@ export function HelpPage(){
       category: "Para Desenvolvedores e Pesquisadores",
       question: "O código-fonte está disponível?",
       answer: "Sim, o projeto segue os princípios de transparência e código aberto. O código-fonte completo está disponível no GitHub, incluindo tanto o sistema de extração de dados quanto a interface web. Você pode encontrar o link no rodapé do site."
+    },
+    {
+      category: "Para Desenvolvedores e Pesquisadores",
+      question: "Quais métricas e indicadores são recomendados para análise comparativa?",
+      answer: "Para análises comparativas entre universidades de diferentes portes, recomendamos considerar métricas relativas como 'investimento por aluno' ou 'percentual do orçamento destinado a diferentes funções'. Especificamente, o valor 'Pago' tende a ser mais preciso para análises orçamentárias definitivas, enquanto o 'Empenhado' é útil para entender o planejamento. Para séries temporais longas (mais de 5 anos), sempre use os valores corrigidos pelo IPCA para neutralizar o efeito da inflação. Os pesquisadores também podem baixar os dados em formato JSON ou CSV para realizar análises estatísticas mais avançadas em ferramentas como R, Python ou SPSS."
+    },
+    {
+      category: "Para Desenvolvedores e Pesquisadores",
+      question: "Posso incorporar os gráficos e visualizações em outros sites ou publicações?",
+      answer: "Sim, você pode capturar as visualizações via screenshot para uso em publicações, citando o SAD-UEPR como fonte. Para integração web mais avançada, você pode utilizar nossa API para obter os dados e construir suas próprias visualizações personalizadas. Ao citar dados do sistema em trabalhos acadêmicos, recomendamos incluir a data da consulta e os parâmetros utilizados, especialmente o período de referência da correção monetária, para garantir a reprodutibilidade da análise. Todos os dados são de domínio público, mas pedimos a gentileza de atribuir a fonte original (Portal da Transparência do Paraná) e o processamento (SAD-UEPR)."
     }
   ];
 

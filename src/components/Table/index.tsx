@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { InputField } from "../Input";
 import { SelectField } from "../Select";
 
@@ -9,13 +9,44 @@ interface TableProps {
   itemsPerPage?: number;
   // Opcionalmente, mapeamento de propriedades para colunas
   keyMap?: Record<string, string>; 
+  tableType?: "comparacao" | "geral"; // Tipo de tabela para formatação específica
 }
 
-export function Table({ items, columns, itemsPerPage = 10, keyMap }: TableProps) {
+// Tipos de filtro disponíveis
+type FilterType = "all" | "month" | "year" | "universidade" | "funcao" | "grupo_natureza" | "origem_recursos";
+
+export function Table({ items, columns, itemsPerPage = 10, keyMap, tableType }: TableProps) {
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "ascending" | "descending" } | null>(null);
   const [filterDate, setFilterDate] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "month" | "year">("all");
+  const [filterText, setFilterText] = useState("");
+  const [filterType, setFilterType] = useState<FilterType>("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [filterOptions, setFilterOptions] = useState<{value: string, label: string}[]>([]);
+  // Extrair opções únicas para os filtros
+  useEffect(() => {
+    if (filterType !== "all" && filterType !== "year" && filterType !== "month") {
+      const field = filterType;
+      const uniqueValues = new Set<string>();
+      
+      items.forEach(item => {
+        // Usar keyMap para obter o valor correto do item
+        const fieldKey = keyMap?.[capitalizeFirstLetter(field)] || field;
+        const value = item[fieldKey];
+        if (value) uniqueValues.add(String(value));
+      });
+      
+      const options = Array.from(uniqueValues)
+        .sort()
+        .map(value => ({ value, label: value }));
+      
+      setFilterOptions(options);
+    }
+  }, [filterType, items, keyMap]);
+
+  // Helper para capitalizar primeira letra (para mapear nomes de campos)
+  const capitalizeFirstLetter = (str: string): string => {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
 
   // Função para obter o valor de uma propriedade do item
   const getItemValue = (item: any, columnIndex: number) => {
@@ -30,7 +61,7 @@ export function Table({ items, columns, itemsPerPage = 10, keyMap }: TableProps)
     if (columnIndex === 0) {
       return item.universidade || item.data || '';
     } else if (columnIndex === 1) {
-      return item.data || '';
+      return item.data || item.ano || '';
     } else {
       // Para outras colunas, tentar um acesso direto ao objeto
       const keyGuess = columnName.toLowerCase().replace(/\s+/g, '_').replace(/[()$]/g, '');
@@ -53,6 +84,7 @@ export function Table({ items, columns, itemsPerPage = 10, keyMap }: TableProps)
 
   // Ordenação otimizada com useMemo
   const sortedItems = useMemo(() => {
+    // ... código existente de ordenação
     if (!sortConfig) return items;
 
     return [...items].sort((a, b) => {
@@ -111,44 +143,71 @@ export function Table({ items, columns, itemsPerPage = 10, keyMap }: TableProps)
 
   // Filtro otimizado com useMemo
   const filteredItems = useMemo(() => {
-    if (!filterDate || filterType === "all") return sortedItems;
+    if (filterType === "all") return sortedItems;
 
     return sortedItems.filter((item) => {
-      // Tentar encontrar o campo que contém a data
-      let itemDate;
-      
-      if (keyMap) {
-        const dateFieldKey = Object.keys(keyMap).find(k => 
-          keyMap[k] === 'data' || k.toLowerCase().includes('período')
-        );
+      // Caso especial para o filtro de ano
+      if (filterType === "year") {
+        // Primeiro verificamos se há um campo 'ano' diretamente no item
+        if (keyMap && keyMap["Ano"]) {
+          const anoValue = String(item[keyMap["Ano"]]);
+          return anoValue === filterDate;
+        }
         
-        if (dateFieldKey && item[keyMap[dateFieldKey]]) {
-          itemDate = String(item[keyMap[dateFieldKey]]).split("/");
+        // Verificar se temos um campo 'ano' diretamente
+        if (item.ano !== undefined) {
+          return String(item.ano) === filterDate;
         }
       }
       
-      // Fallback para comportamento padrão
-      if (!itemDate && item.data) {
-        itemDate = String(item.data).split("/");
-      }
-      
-      if (!itemDate || itemDate.length < 2) return false;
-      
-      const filterDateList = filterDate.split("-");
-
+      // Filtrar por mês/ano
       if (filterType === "month") {
+        // Tentar encontrar o campo que contém a data
+        let itemDate;
+        
+        if (keyMap) {
+          const dateFieldKey = Object.keys(keyMap).find(k => 
+            keyMap[k] === 'data' || k.toLowerCase().includes('período')
+          );
+          
+          if (dateFieldKey && item[keyMap[dateFieldKey]]) {
+            itemDate = String(item[keyMap[dateFieldKey]]).split("/");
+          }
+        }
+        
+        // Fallback para comportamento padrão
+        if (!itemDate && item.data) {
+          itemDate = String(item.data).split("/");
+        }
+        
+        if (!itemDate || itemDate.length < 2) return false;
+        
+        const filterDateList = filterDate.split("-");
+
         return (
           itemDate[0] === filterDateList[1] &&
           itemDate[1] === filterDateList[0]
         );
-      } else if (filterType === "year") {
-        return itemDate[1] ? itemDate[1].includes(filterDateList[0]) : false;
+      }
+      
+      // Filtros personalizados para comparação
+      if (["universidade", "funcao", "grupo_natureza", "origem_recursos"].includes(filterType)) {
+        // Mapear tipo de filtro para o nome da coluna
+        const columnName = capitalizeFirstLetter(filterType);
+        const fieldKey = keyMap?.[columnName] || filterType;
+        
+        // Obter o valor a ser comparado
+        const itemValue = String(item[fieldKey] || "");
+        
+        // Comparar com o valor do filtro
+        return itemValue === filterText;
       }
 
       return true;
     });
-  }, [sortedItems, filterDate, filterType, keyMap]);
+  }, [sortedItems, filterType, filterDate, filterText, keyMap]);
 
+  // Restante do código permanece igual...
   // Paginação otimizada com useMemo
   const paginationData = useMemo(() => {
     const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
@@ -169,6 +228,7 @@ export function Table({ items, columns, itemsPerPage = 10, keyMap }: TableProps)
 
   // Gerar array de números de página para exibição
   const pageNumbers = useMemo(() => {
+    // ... código existente
     if (totalPages <= 7) {
       return Array.from({ length: totalPages }, (_, i) => i + 1);
     }
@@ -192,9 +252,46 @@ export function Table({ items, columns, itemsPerPage = 10, keyMap }: TableProps)
     ];
   }, [currentPage, totalPages]);
 
+  const formatCellValue = (value: string) => {
+    // ... código existente
+    if (typeof value === 'string' && value.includes('R$')) {
+      const numericValue = parseFloat(
+        value
+          .replace(/[^\d,-]/g, '') // remove everything except digits, comma, minus
+          .replace(/\./g, '')      // remove thousand separators
+          .replace(',', '.')       // replace decimal comma with dot
+      );
+      if (numericValue > 0) {
+        return 'bg-green-100 text-green-800'
+      } else if (numericValue < 0) {
+        return 'bg-red-100 text-red-800'
+      } else {
+        return 'bg-blue-100 text-blue-800'
+      }
+    }
+
+    return 'bg-gray-100 text-gray-800';
+  };
+
+  // Definir as opções de filtro com base no tipo de tabela
+  const options = tableType === "comparacao"
+    ? [
+        { value: "all", label: "Todos" },
+        { value: "year", label: "Filtrar por ano" },
+        { value: "universidade", label: "Filtrar por universidade" },
+        { value: "funcao", label: "Filtrar por função" },
+        { value: "grupo_natureza", label: "Filtrar por grupo natureza" },
+        { value: "origem_recursos", label: "Filtrar por origem recursos" },
+      ]
+    : [
+        { value: "all", label: "Todos os períodos" },
+        { value: "year", label: "Filtrar por ano" },
+        { value: "month", label: "Filtrar por mês/ano" },
+      ];
+
   // Ícone de ordenação
   const getSortIcon = (columnIndex: number) => {
-    // Determinar a chave de ordenação
+    // ... código existente
     const columnName = columns[columnIndex];
     const key = keyMap ? keyMap[columnName] : (columnIndex === 0 ? 'universidade' : (columnIndex === 1 ? 'data' : 'valor'));
     
@@ -208,18 +305,29 @@ export function Table({ items, columns, itemsPerPage = 10, keyMap }: TableProps)
     
     if (sortConfig.direction === "ascending") {
       return (
-        <svg className="w-4 h-4 ml-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 ml-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
         </svg>
       );
     }
     
     return (
-      <svg className="w-4 h-4 ml-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-4 h-4 ml-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
       </svg>
     );
   };
+
+  // Limpar filtros quando o tipo de filtro muda
+  const handleFilterTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newFilterType = e.target.value as FilterType;
+    setFilterType(newFilterType);
+    setFilterDate("");
+    setFilterText("");
+    setCurrentPage(1);
+  };
+
+  console.log(currentItems)
 
   return (
     <div className="w-full">
@@ -240,36 +348,50 @@ export function Table({ items, columns, itemsPerPage = 10, keyMap }: TableProps)
             id="filterType"
             name="filterType"
             value={filterType}
-            onChange={(e) => setFilterType(e.target.value as any)}
-            options={[
-              { value: "all", label: "Todos os períodos" },
-              { value: "year", label: "Filtrar por ano" },
-              { value: "month", label: "Filtrar por mês/ano" },
-            ]}
-            className="w-40"
+            onChange={handleFilterTypeChange}
+            options={options}
+            className="w-56"
           />
 
-          <InputField
-            id="filterDate"
-            name="filterDate"
-            type={filterType === "year" ? "number" : "month"}
-            value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
-            disabled={filterType === "all"}
-            placeholder={
-              filterType === "year"
-                ? "Ano (ex: 2022)"
-                : filterType === "month"
-                ? "Mês/Ano"
-                : ""
-            }
-            className="w-40"
-          />
+          {filterType === "year" ? (
+            <InputField
+              id="filterDate"
+              name="filterDate"
+              type="number"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              disabled={filterType === "all"}
+              placeholder="Ano (ex: 2022)"
+              className="w-40"
+            />
+          ) : filterType === "month" ? (
+            <InputField
+              id="filterDate"
+              name="filterDate"
+              type="month"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              disabled={filterType === "all"}
+              placeholder="Mês/Ano"
+              className="w-40"
+            />
+          ) : filterType !== "all" ? (
+            <SelectField
+              id="filterText"
+              name="filterText"
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              options={filterOptions}
+              placeholder={`Selecione ${filterType}`}
+              className="w-64"
+            />
+          ) : null}
         </div>
       </div>
 
       {/* Container da tabela */}
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+        {/* ... resto do código da tabela permanece igual */}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -298,8 +420,8 @@ export function Table({ items, columns, itemsPerPage = 10, keyMap }: TableProps)
                       </svg>
                       <p className="text-lg font-medium">Nenhum registro encontrado</p>
                       <p className="text-sm">
-                        {filterDate || filterType !== "all" 
-                          ? "Tente ajustar os filtros de data" 
+                        {(filterDate || filterText || filterType !== "all")
+                          ? "Tente ajustar os filtros aplicados" 
                           : "Nenhum dado disponível"
                         }
                       </p>
@@ -328,9 +450,7 @@ export function Table({ items, columns, itemsPerPage = 10, keyMap }: TableProps)
                             </div>
                           ) : (
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium 
-                              ${typeof cellValue === 'string' && cellValue.includes('R$') 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-gray-100 text-gray-800'}`}
+                              ${formatCellValue(cellValue)}`}
                             >
                               {cellValue || '-'}
                             </span>
@@ -377,7 +497,7 @@ export function Table({ items, columns, itemsPerPage = 10, keyMap }: TableProps)
                         ? "bg-blue-600 text-white border-blue-600"
                         : page === "..."
                         ? "bg-white text-gray-400 cursor-default"
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 "
                     }`}
                     disabled={page === "..."}
                   >

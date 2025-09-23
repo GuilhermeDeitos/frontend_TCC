@@ -63,7 +63,7 @@ export function ComparacaoSelector({
                 tipoComparacao === 'universidades' 
                   ? 'bg-blue-600 text-white' 
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
+              } cursor-pointer`}
             >
               Entre Universidades
             </button>
@@ -73,7 +73,7 @@ export function ComparacaoSelector({
                 tipoComparacao === 'anos' 
                   ? 'bg-blue-600 text-white' 
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
+              } cursor-pointer`}
             >
               Entre Anos
             </button>
@@ -83,7 +83,7 @@ export function ComparacaoSelector({
                 tipoComparacao === 'evolucao_anual' 
                   ? 'bg-blue-600 text-white' 
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
+              } cursor-pointer`}
             >
               Evolução Anual
             </button>

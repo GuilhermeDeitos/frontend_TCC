@@ -39,7 +39,7 @@ export function Form({
             type="submit"
             disabled={isLoading}
             className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium text-lg cursor-pointer
-            border-1 border-blue-600 hover:bg-transparent hover:text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+            border-1 border-blue-600 hover:bg-transparent hover:text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center "
           >
             {isLoading ? (
               <>

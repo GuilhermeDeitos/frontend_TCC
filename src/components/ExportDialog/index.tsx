@@ -571,7 +571,7 @@ export function ExportDialog({
 
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 hover:text-gray-700 cursor-pointer"
             disabled={exporting}
           >
             <svg
@@ -671,14 +671,14 @@ export function ExportDialog({
                 <div className="flex gap-2">
                   <button
                     onClick={selectAllColumns}
-                    className="text-xs text-blue-600 hover:text-blue-800"
+                    className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
                   >
                     Selecionar tudo
                   </button>
                   <span className="text-gray-400">|</span>
                   <button
                     onClick={unselectAllColumns}
-                    className="text-xs text-blue-600 hover:text-blue-800"
+                    className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
                   >
                     Limpar
                   </button>
@@ -949,7 +949,7 @@ export function ExportDialog({
             <button
               onClick={onClose}
               disabled={exporting}
-              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-md"
+              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-md cursor-pointer"
             >
               Cancelar
             </button>
@@ -962,7 +962,7 @@ export function ExportDialog({
                 !columns.some((col) => col.selected)
               }
               className={`
-                px-4 py-2 text-white rounded-md flex items-center gap-2
+                px-4 py-2 text-white rounded-md flex items-center gap-2 cursor-pointer
                 ${
                   exporting ||
                   !dados.length ||

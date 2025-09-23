@@ -1,5 +1,5 @@
 // Exemplo de uso em uma calculadora de IPCA
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Form } from "../../components/Form";
 import { InputField } from "../../components/Input";
 import { SelectField } from "../../components/Select";
@@ -9,6 +9,8 @@ import {InputGroup} from "../../components/InputGroup";
 import apiIpca from "../../utils/api";
 import Swal from "sweetalert2";
 import {BlueTitleCard} from "../../components/BlueTitleCard";
+import { ErrorPanel } from "../../components/ErrorPanel";
+import api from "../../utils/api";
 
 const meses = [
     { value: "01", label: "Janeiro" },
@@ -33,6 +35,22 @@ export function CalculadoraIPCAPage() {
     mesFinal: "",
     anoFinal: ""
   });
+
+  const [error, setError] = useState<string | null>(null);
+
+  //Verificar se a API está ok
+  const checkApiStatus = async () => {
+    try {
+      await api.get("/ipca");
+    } catch (error) {
+      setError("Erro ao verificar status da API");
+      console.error("Erro ao verificar status da API:", error);
+    }
+  };  
+  // Chamar a verificação de status ao montar o componente
+  useEffect(() => {
+    checkApiStatus();
+  }, []);
 
   const [resultado, setResultado] = useState({
     indice_ipca_final:0,
@@ -145,10 +163,13 @@ export function CalculadoraIPCAPage() {
     });
   };
 
+
   return (
     <div>
       <Header />
-      <BlueTitleCard
+      {error ? (<ErrorPanel message={error} />):(
+        <>
+        <BlueTitleCard
         title="Calculadora de Correção Monetária"
         subtitle="Calcule a correção de valores pelo IPCA de Dezembro de 1979 até dois meses antes da data atual."
       />
@@ -249,6 +270,9 @@ export function CalculadoraIPCAPage() {
         </InputGroup>
       </Form>
       </main>
+      </>
+      )}
+      
       <Footer />
     </div>
   );

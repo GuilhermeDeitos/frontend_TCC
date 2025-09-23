@@ -14,7 +14,7 @@ export function ChartSelector({ tipoGrafico, onChange }: ChartSelectorProps) {
           tipoGrafico === 'barras' 
             ? 'bg-blue-600 text-white' 
             : 'bg-gray-200 text-gray-700'
-        }`}
+        } cursor-pointer`}
       >
         Barras
       </button>
@@ -24,7 +24,7 @@ export function ChartSelector({ tipoGrafico, onChange }: ChartSelectorProps) {
           tipoGrafico === 'linhas' 
             ? 'bg-blue-600 text-white' 
             : 'bg-gray-200 text-gray-700'
-        }`}
+        } cursor-pointer`}
       >
         Linhas
       </button>
@@ -34,7 +34,7 @@ export function ChartSelector({ tipoGrafico, onChange }: ChartSelectorProps) {
           tipoGrafico === 'pizza' 
             ? 'bg-blue-600 text-white' 
             : 'bg-gray-200 text-gray-700'
-        }`}
+        } cursor-pointer`}
       >
         Pizza
       </button>
@@ -44,7 +44,7 @@ export function ChartSelector({ tipoGrafico, onChange }: ChartSelectorProps) {
           tipoGrafico === 'area' 
             ? 'bg-blue-600 text-white' 
             : 'bg-gray-200 text-gray-700'
-        }`}
+        } cursor-pointer`}
       >
         Área
       </button>
