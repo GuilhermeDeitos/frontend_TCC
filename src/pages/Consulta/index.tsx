@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "../../components/Header";
 import { Footer } from "../../components/Footer";
 import { BlueTitleCard } from "../../components/BlueTitleCard";
@@ -7,8 +7,39 @@ import { LoadingIndicator } from "../../components/LoadingIndicator";
 import { ResultsViewer } from "../../components/ResultsViewer";
 import { useTransparenciaData } from "../../hooks/useTransparenciaData";
 import type { FormData } from "../../types/consulta";
-import Swal from 'sweetalert2'; // Adicione esta importação se ainda não existir
+import Swal from 'sweetalert2';
 import { ErrorPanel } from "../../components/ErrorPanel";
+import { motion, AnimatePresence } from "framer-motion";
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      when: "beforeChildren",
+      staggerChildren: 0.3,
+      duration: 0.5
+    }
+  },
+  exit: {
+    opacity: 0,
+    transition: { duration: 0.3 }
+  }
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: { duration: 0.5 }
+  },
+  exit: {
+    y: -20,
+    opacity: 0,
+    transition: { duration: 0.3 }
+  }
+};
 
 export function ConsultaPage() {
   const {
@@ -24,7 +55,7 @@ export function ConsultaPage() {
     checkApiStatus,
     retryFetch,
     error
-  } = useTransparenciaData(); // Certifique-se de que esta função está sendo importada do hook,
+  } = useTransparenciaData();
 
   // Estado para armazenar parâmetros da última consulta
   const [parametrosConsulta, setParametrosConsulta] = useState<{
@@ -32,7 +63,13 @@ export function ConsultaPage() {
     anoFinal: number;
   }>({ anoInicial: 0, anoFinal: 0 });
   
-
+  // Estado para controlar animações
+  const [animationKey, setAnimationKey] = useState(0);
+  
+  // Atualizar chave de animação quando os dados mudam
+  useEffect(() => {
+    setAnimationKey(prev => prev + 1);
+  }, [dadosConsulta.length]);
 
   const handleSubmit = (formData: FormData) => {
     const params = {
@@ -78,53 +115,97 @@ export function ConsultaPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      {
-        error ? <ErrorPanel message={error} retry={retryFetch} /> : (
-          <>
+      <AnimatePresence mode="wait">
+        {error ? (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <ErrorPanel message={error} retry={retryFetch} />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="content"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="flex-grow"
+          >
             <BlueTitleCard
-        title="Consulta de Financiamento"
-        subtitle="Consulte os dados de financiamento das universidades estaduais do Paraná"
-      />
-
-      <div className="flex-grow bg-gray-50 py-8">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Formulário de Consulta */}
-          <ConsultaForm
-            onSubmit={handleSubmit}
-            isLoading={isLoading}
-            listaIPCA={listaIPCA}
-            listaIPCAAnual={listaIPCAAnual}
-            carregarMediasAnuais={carregarMediasAnuais}
-          />
-
-          {/* Loading com indicador de progresso */}
-          {isLoading && (
-            <LoadingIndicator
-              message={loadingMessage}
-              progresso={progressoConsulta.percentual}
-              registrosProcessados={progressoConsulta.registrosProcessados}
-              totalRegistros={progressoConsulta.totalRegistros}
-              anosProcessados={progressoConsulta.anosProcessados}
-              anoInicial={progressoConsulta.anoInicial}
-              anoFinal={progressoConsulta.anoFinal}
-              onCancel={handleCancelarConsulta}
+              title="Consulta de Financiamento"
+              subtitle="Consulte os dados de financiamento das universidades estaduais do Paraná"
             />
-          )}
 
-          {/* Resultados */}
-          {!isLoading && dadosConsulta.length > 0 && (
-            <ResultsViewer
-              dados={dadosConsulta}
-              parametrosConsulta={parametrosConsulta}
-            />
-          )}
-        </div>
-      </div>
-          </>
-        )
-      }
-      
+            <div className="flex-grow bg-gray-50 py-8">
+              <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                {/* Formulário de Consulta */}
+                <motion.div
+                  variants={itemVariants}
+                  className="mb-6"
+                >
+                  <ConsultaForm
+                    onSubmit={handleSubmit}
+                    isLoading={isLoading}
+                    listaIPCA={listaIPCA}
+                    listaIPCAAnual={listaIPCAAnual}
+                    carregarMediasAnuais={carregarMediasAnuais}
+                  />
+                </motion.div>
 
+                {/* Loading com indicador de progresso */}
+                <AnimatePresence>
+                  {isLoading && (
+                    <motion.div
+                      key="loading"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <LoadingIndicator
+                        message={loadingMessage}
+                        progresso={progressoConsulta.percentual}
+                        registrosProcessados={progressoConsulta.registrosProcessados}
+                        totalRegistros={progressoConsulta.totalRegistros}
+                        anosProcessados={progressoConsulta.anosProcessados}
+                        anoInicial={progressoConsulta.anoInicial}
+                        anoFinal={progressoConsulta.anoFinal}
+                        onCancel={handleCancelarConsulta}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Resultados */}
+                <AnimatePresence>
+                  {!isLoading && dadosConsulta.length > 0 && (
+                    <motion.div
+                      key={`results-${animationKey}`}
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -30 }}
+                      transition={{ 
+                        type: "spring", 
+                        stiffness: 100,
+                        damping: 15,
+                        duration: 0.6 
+                      }}
+                    >
+                      <ResultsViewer
+                        dados={dadosConsulta}
+                        parametrosConsulta={parametrosConsulta}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <Footer />
     </div>
   );
