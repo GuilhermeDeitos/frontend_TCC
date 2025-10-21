@@ -6,6 +6,7 @@ import { TextareaField } from "../../components/TextArea";
 import { useState } from "react";
 import Swal from 'sweetalert2'
 import { BlueTitleCard } from "../../components/BlueTitleCard";
+import api from "../../utils/api"; // Importando a instância do axios
 
 export function ContactPage() {
   const [formData, setFormData] = useState({
@@ -27,18 +28,29 @@ export function ContactPage() {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simular delay de envio
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    console.log('Dados do formulário:', formData);
-    Swal.fire({
-      icon: 'success',
-      title: 'Mensagem enviada com sucesso!',
-      text: 'Agradecemos seu contato e retornaremos em breve.',
-    });
-    
-    setFormData({ name: '', email: '', message: '' });
-    setIsLoading(false);
+    try {
+      // Enviar dados para a API
+      await api.post('/email/contact', formData);
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Mensagem enviada com sucesso!',
+        text: 'Agradecemos seu contato e retornaremos em breve.',
+      });
+      
+      // Limpar o formulário após envio bem-sucedido
+      setFormData({ name: '', email: '', message: '' });
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Falha ao enviar mensagem',
+        text: 'Ocorreu um erro ao enviar sua mensagem. Por favor, tente novamente mais tarde.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

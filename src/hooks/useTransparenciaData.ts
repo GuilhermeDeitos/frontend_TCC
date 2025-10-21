@@ -15,6 +15,72 @@ interface ProgressoConsulta {
   registrosProcessados: number;
 }
 
+function removerDadosDuplicados(
+  dadosNovos: DadosConsulta[],
+  dadosExistentes: DadosConsulta[]
+): DadosConsulta[] {
+  if (!dadosNovos || dadosNovos.length === 0) return [];
+  if (!dadosExistentes || dadosExistentes.length === 0) return dadosNovos;
+
+  console.log(
+    `Verificando duplicatas: ${dadosNovos.length} novos registros contra ${dadosExistentes.length} existentes`
+  );
+
+  // Criar um Set com identificadores únicos dos dados existentes
+  const idsExistentes = new Set(
+    dadosExistentes.map((dado) => {
+      // Chave de identificação mais completa usando múltiplos campos
+      return `${dado.UNIDADE_ORCAMENTARIA || ""}-${dado.FUNCAO || ""}-${
+        dado.ANO || dado._ano_validado || ""
+      }-${dado.MES || ""}-${dado.GRUPO_NATUREZA || ""}-${
+        dado.ORIGEM_RECURSOS || ""
+      }-${dado.VALOR_PAGO || ""}`;
+    })
+  );
+
+  // Filtrar apenas dados que não existem ainda
+  const dadosFiltrados = dadosNovos.filter((dado) => {
+    const id = `${dado.UNIDADE_ORCAMENTARIA || ""}-${dado.FUNCAO || ""}-${
+      dado.ANO || dado._ano_validado || ""
+    }-${dado.MES || ""}-${dado.GRUPO_NATUREZA || ""}-${
+      dado.ORIGEM_RECURSOS || ""
+    }-${dado.VALOR_PAGO || ""}`;
+    return !idsExistentes.has(id);
+  });
+
+  console.log(
+    `Removidas ${dadosNovos.length - dadosFiltrados.length} duplicatas, ${
+      dadosFiltrados.length
+    } registros únicos`
+  );
+
+  // Verificar duplicatas internas no resultado filtrado
+  const uniqueValues = new Set();
+  const resultadoFinal = dadosFiltrados.filter((dado) => {
+    const id = `${dado.UNIDADE_ORCAMENTARIA || ""}-${dado.FUNCAO || ""}-${
+      dado.ANO || dado._ano_validado || ""
+    }-${dado.MES || ""}-${dado.GRUPO_NATUREZA || ""}-${
+      dado.ORIGEM_RECURSOS || ""
+    }-${dado.VALOR_PAGO || ""}`;
+
+    if (uniqueValues.has(id)) {
+      return false; // É duplicata interna, remover
+    }
+
+    uniqueValues.add(id);
+    return true;
+  });
+
+  if (resultadoFinal.length < dadosFiltrados.length) {
+    console.log(
+      `⚠️ Removidas ${
+        dadosFiltrados.length - resultadoFinal.length
+      } duplicatas internas no conjunto filtrado`
+    );
+  }
+
+  return resultadoFinal;
+}
 /**
  * Hook principal para gerenciar dados do Portal da Transparência
  * Fornece funcionalidades para consulta, carregamento e manipulação de dados
@@ -25,12 +91,14 @@ export function useTransparenciaData() {
   const [loadingMessage, setLoadingMessage] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [consultaAtualId, setConsultaAtualId] = useState<string | null>(null);
-  const [progressoConsulta, setProgressoConsulta] = useState<ProgressoConsulta>({
-    anosProcessados: new Set(),
-    percentual: 0,
-    totalRegistros: 0,
-    registrosProcessados: 0,
-  });
+  const [progressoConsulta, setProgressoConsulta] = useState<ProgressoConsulta>(
+    {
+      anosProcessados: new Set(),
+      percentual: 0,
+      totalRegistros: 0,
+      registrosProcessados: 0,
+    }
+  );
 
   const { listaIPCA, listaIPCAAnual, carregarMediasAnuais } = useIPCAData();
 
@@ -43,13 +111,13 @@ export function useTransparenciaData() {
     try {
       const response = await api.get("/transparencia/status");
       const apiOk = response.data?.status === "ok";
-      
+
       if (!apiOk) {
         setError("API de Scrapping está offline");
       } else {
         setError(null);
       }
-      
+
       return apiOk;
     } catch (error) {
       console.log("Erro ao verificar status da API:", error);
@@ -86,7 +154,9 @@ export function useTransparenciaData() {
       try {
         idConsulta = sessionStorage.getItem("currentConsultaId");
         if (idConsulta) {
-          console.log(`ID da consulta encontrado no sessionStorage: ${idConsulta}`);
+          console.log(
+            `ID da consulta encontrado no sessionStorage: ${idConsulta}`
+          );
         }
       } catch {
         console.log("Erro ao acessar sessionStorage");
@@ -95,11 +165,15 @@ export function useTransparenciaData() {
 
     if (idConsulta) {
       console.log(`Tentando cancelar consulta ID: ${idConsulta}`);
-      
+
       // Fazer uma chamada separada para garantir o cancelamento
-      api.post(`/transparencia/cancelar/${idConsulta}`)
+      api
+        .post(`/transparencia/cancelar/${idConsulta}`)
         .then((response) => {
-          console.log(`Consulta ${idConsulta} cancelada explicitamente:`, response.data);
+          console.log(
+            `Consulta ${idConsulta} cancelada explicitamente:`,
+            response.data
+          );
           // Limpar o ID após o cancelamento
           consultaIdRef.current = null;
           setConsultaAtualId(null);
@@ -111,7 +185,9 @@ export function useTransparenciaData() {
           console.error(`Erro ao cancelar explicitamente: ${err}`);
         });
     } else {
-      console.warn("Tentativa de cancelamento, mas nenhum ID de consulta disponível");
+      console.warn(
+        "Tentativa de cancelamento, mas nenhum ID de consulta disponível"
+      );
     }
 
     // Finalizar o estado de carregamento
@@ -119,251 +195,335 @@ export function useTransparenciaData() {
     setLoadingMessage("");
   }, [consultaAtualId]);
 
-  const consultarDados = useCallback(async (params: ConsultaParams): Promise<void> => {
-    setIsLoading(true);
-    setDadosConsulta([]);
-    setError(null);
-    cancelRequestRef.current = false;
+  const consultarDados = useCallback(
+    async (params: ConsultaParams): Promise<void> => {
+      setIsLoading(true);
+      setDadosConsulta([]);
+      setError(null);
+      cancelRequestRef.current = false;
 
-    // Criar um novo AbortController
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
+      // Criar um novo AbortController
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
 
-    // Extrair anos inicial e final da consulta
-    const [mesInicial, anoInicial] = params.data_inicio.split("/");
-    const [mesFinal, anoFinal] = params.data_fim.split("/");
+      // Extrair anos inicial e final da consulta
+      const [mesInicial, anoInicial] = params.data_inicio.split("/");
+      const [mesFinal, anoFinal] = params.data_fim.split("/");
 
-    const anoInicialNum = parseInt(anoInicial);
-    const anoFinalNum = parseInt(anoFinal);
-    const totalAnosEsperados = anoFinalNum - anoInicialNum + 1;
+      const anoInicialNum = parseInt(anoInicial);
+      const anoFinalNum = parseInt(anoFinal);
+      const totalAnosEsperados = anoFinalNum - anoInicialNum + 1;
 
-    // Resetar o progresso da consulta
-    setProgressoConsulta({
-      anosProcessados: new Set(),
-      anoInicial: anoInicialNum,
-      anoFinal: anoFinalNum,
-      percentual: 0,
-      totalRegistros: 0,
-      registrosProcessados: 0,
-    });
+      // Resetar o progresso da consulta
+      setProgressoConsulta({
+        anosProcessados: new Set(),
+        anoInicial: anoInicialNum,
+        anoFinal: anoFinalNum,
+        percentual: 0,
+        totalRegistros: 0,
+        registrosProcessados: 0,
+      });
 
-    setLoadingMessage("Iniciando consulta...");
+      setLoadingMessage("Iniciando consulta...");
 
-    try {
-      // Usar fetch com streaming SSE
-      const response = await fetch(
-        `${api.defaults.baseURL}/transparencia/consultar-streaming`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(params),
-          signal,
-        }
-      );
+      try {
+        // Usar fetch com streaming SSE
+        const response = await fetch(
+          `${api.defaults.baseURL}/transparencia/consultar-streaming`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(params),
+            signal,
+          }
+        );
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Erro ${response.status}: ${errorText}`);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("Stream não disponível");
-      }
-      
-      const decoder = new TextDecoder();
-      let dadosAcumulados: DadosConsulta[] = [];
-      let buffer = "";
-      let eventBuffer = "";
-      let consultaConcluida = false;
-
-      // Processar stream
-      while (true) {
-        if (cancelRequestRef.current) {
-          console.log("Consulta cancelada pelo usuário");
-          break;
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Erro ${response.status}: ${errorText}`);
         }
 
-        const { done, value } = await reader.read();
-        if (done) {
-          console.log("Stream finalizado");
-          break;
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error("Stream não disponível");
         }
 
-        // Decodificar chunk
-        buffer += decoder.decode(value, { stream: true });
+        const decoder = new TextDecoder();
+        let dadosAcumulados: DadosConsulta[] = [];
+        let buffer = "";
+        let eventBuffer = "";
+        let consultaConcluida = false;
 
-        // Processar linhas completas
-        const lines = buffer.split("\n");
-        buffer = lines[lines.length - 1];
+        // Processar stream
+        while (true) {
+          if (cancelRequestRef.current) {
+            console.log("Consulta cancelada pelo usuário");
+            break;
+          }
 
-        // Processar cada linha
-        for (let i = 0; i < lines.length - 1; i++) {
-          const line = lines[i].trim();
+          const { done, value } = await reader.read();
+          if (done) {
+            console.log("Stream finalizado");
+            break;
+          }
 
-          if (line === "" && eventBuffer) {
-            // Processar evento SSE completo
-            if (eventBuffer.startsWith("data: ")) {
-              try {
-                const jsonStr = eventBuffer.substring(6);
-                const chunk = JSON.parse(jsonStr);
+          // Decodificar chunk
+          buffer += decoder.decode(value, { stream: true });
 
-                console.log("Evento recebido:", chunk.status, chunk);
+          // Processar linhas completas
+          const lines = buffer.split("\n");
+          buffer = lines[lines.length - 1];
 
-                if (chunk.id_consulta) {
-                  consultaIdRef.current = chunk.id_consulta;
-                  setConsultaAtualId(chunk.id_consulta);
-                  try {
-                    sessionStorage.setItem("currentConsultaId", chunk.id_consulta);
-                  } catch {}
-                }
+          // Processar cada linha
+          for (let i = 0; i < lines.length - 1; i++) {
+            const line = lines[i].trim();
 
-                if (chunk.status === "iniciando") {
-                  setLoadingMessage(`Consulta iniciada. ID: ${chunk.id_consulta}`);
-                } 
-                else if (chunk.status === "parcial") {
-                  const anoProcessado = Number(chunk.ano_processado);
+            if (line === "" && eventBuffer) {
+              // Processar evento SSE completo
+              if (eventBuffer.startsWith("data: ")) {
+                try {
+                  const jsonStr = eventBuffer.substring(6);
+                  const chunk = JSON.parse(jsonStr);
 
-                  setProgressoConsulta((prev) => {
-                    const anosProcessados = new Set(prev.anosProcessados);
-                    anosProcessados.add(anoProcessado);
+                  console.log("Evento recebido:", chunk.status, chunk);
 
-                    // Calcular percentual
-                    const percentual = Math.min(100, Math.round((anosProcessados.size / totalAnosEsperados) * 100));
-                    const registrosProcessados = prev.registrosProcessados + chunk.dados.length;
-
-                    console.log(`Progresso: ${anosProcessados.size}/${totalAnosEsperados} anos (${percentual}%)`);
-
-                    // VERIFICAR SE TODOS OS ANOS FORAM PROCESSADOS
-                    if (anosProcessados.size >= totalAnosEsperados) {
-                      console.log("🎉 Todos os anos processados! Finalizando consulta automaticamente.");
-                      consultaConcluida = true;
-                      
-                      // Finalizar imediatamente
-                      setTimeout(() => {
-                        setIsLoading(false);
-                        setLoadingMessage("");
-                      }, 100);
-                    }
-
-                    return {
-                      ...prev,
-                      anosProcessados,
-                      percentual: anosProcessados.size >= totalAnosEsperados ? 100 : percentual,
-                      registrosProcessados,
-                      totalRegistros: chunk.total_estimado || registrosProcessados,
-                    };
-                  });
-
-                  setLoadingMessage(`Processando ano ${anoProcessado}...`);
-
-                  // Processar dados parciais
-                  const novosDados = processarDadosChunk(chunk, dadosAcumulados);
-                  dadosAcumulados = [...dadosAcumulados, ...novosDados];
-                  setDadosConsulta([...dadosAcumulados]);
-                } 
-                else if (chunk.status === "completo") {
-                  console.log("Consulta marcada como completa pelo servidor");
-                  consultaConcluida = true;
-
-                  // Processar dados finais se existirem
-                  if (chunk.dados && chunk.dados.length > 0) {
-                    const novosDados = processarDadosChunk(chunk, dadosAcumulados);
-                    dadosAcumulados = [...dadosAcumulados, ...novosDados];
-                    setDadosConsulta([...dadosAcumulados]);
+                  if (chunk.id_consulta) {
+                    consultaIdRef.current = chunk.id_consulta;
+                    setConsultaAtualId(chunk.id_consulta);
+                    try {
+                      sessionStorage.setItem(
+                        "currentConsultaId",
+                        chunk.id_consulta
+                      );
+                    } catch {}
                   }
 
-                  // Finalizar consulta
-                  setProgressoConsulta((prev) => ({ ...prev, percentual: 100 }));
-                  setIsLoading(false);
-                  setLoadingMessage("");
-                } 
-                else if (chunk.status === "erro") {
-                  throw new Error(chunk.mensagem || chunk.error || "Erro desconhecido na consulta");
+                  if (chunk.status === "iniciando") {
+                    setLoadingMessage(
+                      `Consulta iniciada. ID: ${chunk.id_consulta}`
+                    );
+                  } // Substitua o processamento de eventos parciais (por volta da linha 220)
+                  else if (chunk.status === "parcial") {
+                    const anoProcessado = Number(chunk.ano_processado);
+
+                    setProgressoConsulta((prev) => {
+                      const anosProcessados = new Set(prev.anosProcessados);
+                      anosProcessados.add(anoProcessado);
+
+                      // Calcular percentual
+                      const percentual = Math.min(
+                        100,
+                        Math.round(
+                          (anosProcessados.size / totalAnosEsperados) * 100
+                        )
+                      );
+
+                      // IMPORTANTE: Filtrar dados duplicados antes de contabilizar
+                      const dadosUnicos = chunk.dados
+                        ? removerDadosDuplicados(chunk.dados, dadosAcumulados)
+                        : [];
+
+                      const registrosProcessados =
+                        prev.registrosProcessados + dadosUnicos.length;
+
+                      console.log(
+                        `Progresso: ${anosProcessados.size}/${totalAnosEsperados} anos (${percentual}%)`
+                      );
+
+                      // VERIFICAR SE TODOS OS ANOS FORAM PROCESSADOS
+                      if (anosProcessados.size >= totalAnosEsperados) {
+                        console.log(
+                          "🎉 Todos os anos processados! Finalizando consulta automaticamente."
+                        );
+                        consultaConcluida = true;
+
+                        // Finalizar imediatamente
+                        setTimeout(() => {
+                          setIsLoading(false);
+                          setLoadingMessage("");
+                        }, 100);
+                      }
+
+                      return {
+                        ...prev,
+                        anosProcessados,
+                        percentual:
+                          anosProcessados.size >= totalAnosEsperados
+                            ? 100
+                            : percentual,
+                        registrosProcessados,
+                        totalRegistros:
+                          chunk.total_estimado || registrosProcessados,
+                      };
+                    });
+
+                    setLoadingMessage(`Processando ano ${anoProcessado}...`);
+
+                    // Processar dados parciais evitando duplicatas
+                    if (chunk.dados && chunk.dados.length > 0) {
+                      const dadosFiltrados = removerDadosDuplicados(
+                        chunk.dados,
+                        dadosAcumulados
+                      );
+                      if (dadosFiltrados.length > 0) {
+                        const novosDados = processarDadosChunk(
+                          { ...chunk, dados: dadosFiltrados },
+                          dadosAcumulados
+                        );
+                        dadosAcumulados = [...dadosAcumulados, ...novosDados];
+                        setDadosConsulta([...dadosAcumulados]);
+                      } else {
+                        console.log(
+                          "Todos os dados recebidos são duplicatas, nenhum dado adicionado"
+                        );
+                      }
+                    }
+                  }
+
+                  // Substitua também o código que trata os eventos completos (por volta da linha 260)
+                  else if (chunk.status === "completo") {
+                    console.log("Consulta marcada como completa pelo servidor");
+                    consultaConcluida = true;
+                    if (
+                      progressoConsulta.anosProcessados.size >=
+                      totalAnosEsperados
+                    ) {
+                      console.log(
+                        "Todos os anos já foram processados. Ignorando dados do evento 'completo'"
+                      );
+
+                      // Apenas finalize a consulta sem processar novos dados
+                      setProgressoConsulta((prev) => ({
+                        ...prev,
+                        percentual: 100,
+                      }));
+                      setIsLoading(false);
+                      setLoadingMessage("");
+                      return;
+                    }
+
+                    // Processar dados finais se existirem, evitando duplicatas
+                    if (chunk.dados && chunk.dados.length > 0) {
+                      const dadosFiltrados = removerDadosDuplicados(
+                        chunk.dados,
+                        dadosAcumulados
+                      );
+                      console.log(
+                        `Evento completo: ${chunk.dados.length} recebidos, ${dadosFiltrados.length} são novos`
+                      );
+
+                      if (dadosFiltrados.length > 0) {
+                        const novosDados = processarDadosChunk(
+                          { ...chunk, dados: dadosFiltrados },
+                          dadosAcumulados
+                        );
+                        dadosAcumulados = [...dadosAcumulados, ...novosDados];
+                        setDadosConsulta([...dadosAcumulados]);
+                      }
+                    }
+
+                    // Finalizar consulta
+                    setProgressoConsulta((prev) => ({
+                      ...prev,
+                      percentual: 100,
+                    }));
+                    setIsLoading(false);
+                    setLoadingMessage("");
+                  } else if (chunk.status === "erro") {
+                    throw new Error(
+                      chunk.mensagem ||
+                        chunk.error ||
+                        "Erro desconhecido na consulta"
+                    );
+                  }
+                } catch (e) {
+                  console.error("Erro ao processar evento SSE:", e);
+                  // Não quebrar o loop por erro de parsing
                 }
-              } catch (e) {
-                console.error("Erro ao processar evento SSE:", e);
-                // Não quebrar o loop por erro de parsing
               }
+              eventBuffer = "";
+            } else if (line) {
+              eventBuffer = eventBuffer ? eventBuffer + "\n" + line : line;
             }
-            eventBuffer = "";
-          } else if (line) {
-            eventBuffer = eventBuffer ? eventBuffer + "\n" + line : line;
+          }
+
+          // VERIFICAÇÃO ADICIONAL: Se todos os anos foram processados, sair do loop
+          if (consultaConcluida) {
+            console.log("Saindo do loop de processamento - consulta concluída");
+            break;
           }
         }
 
-        // VERIFICAÇÃO ADICIONAL: Se todos os anos foram processados, sair do loop
-        if (consultaConcluida) {
-          console.log("Saindo do loop de processamento - consulta concluída");
-          break;
-        }
-      }
+        // Processar buffer final se existir
+        if (eventBuffer && eventBuffer.startsWith("data: ")) {
+          try {
+            const jsonStr = eventBuffer.substring(6);
+            const chunk = JSON.parse(jsonStr);
+            console.log("Processando evento final:", chunk);
 
-      // Processar buffer final se existir
-      if (eventBuffer && eventBuffer.startsWith("data: ")) {
-        try {
-          const jsonStr = eventBuffer.substring(6);
-          const chunk = JSON.parse(jsonStr);
-          console.log("Processando evento final:", chunk);
-          
-          if (chunk.status === "completo") {
-            consultaConcluida = true;
+            if (chunk.status === "completo") {
+              consultaConcluida = true;
+            }
+          } catch (e) {
+            console.error("Erro ao processar buffer final:", e);
           }
-        } catch (e) {
-          console.error("Erro ao processar buffer final:", e);
         }
-      }
 
-      // VERIFICAÇÃO FINAL GARANTIDA
-      setProgressoConsulta((prev) => {
-        const anosProcessadosAtual = prev.anosProcessados.size;
-        const todosAnosProcessados = anosProcessadosAtual >= totalAnosEsperados;
-        
-        console.log(`✅ Verificação final: ${anosProcessadosAtual}/${totalAnosEsperados} anos processados`);
-        console.log(`✅ Consulta marcada como completa: ${consultaConcluida}`);
-        console.log(`✅ Todos os anos processados: ${todosAnosProcessados}`);
+        // VERIFICAÇÃO FINAL GARANTIDA
+        setProgressoConsulta((prev) => {
+          const anosProcessadosAtual = prev.anosProcessados.size;
+          const todosAnosProcessados =
+            anosProcessadosAtual >= totalAnosEsperados;
 
-        // SEMPRE finalizar se todos os anos foram processados
-        if (todosAnosProcessados) {
-          console.log("🎯 Finalizando consulta - todos os anos processados");
+          console.log(
+            `✅ Verificação final: ${anosProcessadosAtual}/${totalAnosEsperados} anos processados`
+          );
+          console.log(
+            `✅ Consulta marcada como completa: ${consultaConcluida}`
+          );
+          console.log(`✅ Todos os anos processados: ${todosAnosProcessados}`);
+
+          // SEMPRE finalizar se todos os anos foram processados
+          if (todosAnosProcessados) {
+            console.log("🎯 Finalizando consulta - todos os anos processados");
+            setIsLoading(false);
+            setLoadingMessage("");
+            return { ...prev, percentual: 100 };
+          }
+
+          return prev;
+        });
+      } catch (error: any) {
+        console.error("Erro na consulta:", error);
+
+        if (error.name === "AbortError") {
+          console.log("Requisição cancelada pelo usuário");
+          return;
+        }
+
+        // Tratar erro e exibir mensagem adequada
+        const errorMessage = extrairMensagemErro(error);
+        setError(errorMessage);
+
+        Swal.fire({
+          icon: "error",
+          title: "Erro na Consulta",
+          text: errorMessage,
+        });
+      } finally {
+        // GARANTIA FINAL: Sempre limpar loading após timeout
+        setTimeout(() => {
           setIsLoading(false);
           setLoadingMessage("");
-          return { ...prev, percentual: 100 };
-        }
+        }, 2000);
 
-        return prev;
-      });
-
-    } catch (error: any) {
-      console.error("Erro na consulta:", error);
-      
-      if (error.name === "AbortError") {
-        console.log("Requisição cancelada pelo usuário");
-        return;
+        abortControllerRef.current = null;
       }
-
-      // Tratar erro e exibir mensagem adequada
-      const errorMessage = extrairMensagemErro(error);
-      setError(errorMessage);
-      
-      Swal.fire({
-        icon: "error",
-        title: "Erro na Consulta",
-        text: errorMessage,
-      });
-      
-    } finally {
-      // GARANTIA FINAL: Sempre limpar loading após timeout
-      setTimeout(() => {
-        setIsLoading(false);
-        setLoadingMessage("");
-      }, 2000);
-      
-      abortControllerRef.current = null;
-    }
-  }, []);
+    },
+    []
+  );
 
   // Verificar status da API ao carregar o componente
   useEffect(() => {

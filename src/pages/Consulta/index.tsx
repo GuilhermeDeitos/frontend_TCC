@@ -6,8 +6,8 @@ import { ConsultaForm } from "../../components/ConsultaForm";
 import { LoadingIndicator } from "../../components/LoadingIndicator";
 import { ResultsViewer } from "../../components/ResultsViewer";
 import { useTransparenciaData } from "../../hooks/useTransparenciaData";
-import type { FormData } from "../../types/consulta";
-import Swal from 'sweetalert2';
+import type { DadosConsulta, FormData } from "../../types/consulta";
+import Swal from "sweetalert2";
 import { ErrorPanel } from "../../components/ErrorPanel";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -18,13 +18,13 @@ const containerVariants = {
     transition: {
       when: "beforeChildren",
       staggerChildren: 0.3,
-      duration: 0.5
-    }
+      duration: 0.5,
+    },
   },
   exit: {
     opacity: 0,
-    transition: { duration: 0.3 }
-  }
+    transition: { duration: 0.3 },
+  },
 };
 
 const itemVariants = {
@@ -32,13 +32,13 @@ const itemVariants = {
   visible: {
     y: 0,
     opacity: 1,
-    transition: { duration: 0.5 }
+    transition: { duration: 0.5 },
   },
   exit: {
     y: -20,
     opacity: 0,
-    transition: { duration: 0.3 }
-  }
+    transition: { duration: 0.3 },
+  },
 };
 
 export function ConsultaPage() {
@@ -51,10 +51,10 @@ export function ConsultaPage() {
     carregarMediasAnuais,
     consultarDados,
     progressoConsulta,
-    cancelarConsulta, 
+    cancelarConsulta,
     checkApiStatus,
     retryFetch,
-    error
+    error,
   } = useTransparenciaData();
 
   // Estado para armazenar parâmetros da última consulta
@@ -62,13 +62,13 @@ export function ConsultaPage() {
     anoInicial: number;
     anoFinal: number;
   }>({ anoInicial: 0, anoFinal: 0 });
-  
+
   // Estado para controlar animações
   const [animationKey, setAnimationKey] = useState(0);
-  
+
   // Atualizar chave de animação quando os dados mudam
   useEffect(() => {
-    setAnimationKey(prev => prev + 1);
+    setAnimationKey((prev) => prev + 1);
   }, [dadosConsulta.length]);
 
   const handleSubmit = (formData: FormData) => {
@@ -91,22 +91,22 @@ export function ConsultaPage() {
   // Função para lidar com o cancelamento da consulta
   const handleCancelarConsulta = () => {
     Swal.fire({
-      title: 'Cancelar consulta?',
-      text: 'Os dados processados até o momento serão mantidos, mas a consulta será interrompida.',
-      icon: 'warning',
+      title: "Cancelar consulta?",
+      text: "Os dados processados até o momento serão mantidos, mas a consulta será interrompida.",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonText: 'Sim, cancelar',
-      cancelButtonText: 'Não, continuar',
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
+      confirmButtonText: "Sim, cancelar",
+      cancelButtonText: "Não, continuar",
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
     }).then((result) => {
       if (result.isConfirmed) {
         cancelarConsulta();
-        
+
         Swal.fire(
-          'Consulta cancelada',
-          'A consulta foi interrompida. Os dados já processados estão disponíveis para análise.',
-          'info'
+          "Consulta cancelada",
+          "A consulta foi interrompida. Os dados já processados estão disponíveis para análise.",
+          "info"
         );
       }
     });
@@ -142,10 +142,7 @@ export function ConsultaPage() {
             <div className="flex-grow bg-gray-50 py-8">
               <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Formulário de Consulta */}
-                <motion.div
-                  variants={itemVariants}
-                  className="mb-6"
-                >
+                <motion.div variants={itemVariants} className="mb-6">
                   <ConsultaForm
                     onSubmit={handleSubmit}
                     isLoading={isLoading}
@@ -168,7 +165,9 @@ export function ConsultaPage() {
                       <LoadingIndicator
                         message={loadingMessage}
                         progresso={progressoConsulta.percentual}
-                        registrosProcessados={progressoConsulta.registrosProcessados}
+                        registrosProcessados={
+                          progressoConsulta.registrosProcessados
+                        }
                         totalRegistros={progressoConsulta.totalRegistros}
                         anosProcessados={progressoConsulta.anosProcessados}
                         anoInicial={progressoConsulta.anoInicial}
@@ -187,11 +186,11 @@ export function ConsultaPage() {
                       initial={{ opacity: 0, y: 30 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -30 }}
-                      transition={{ 
-                        type: "spring", 
+                      transition={{
+                        type: "spring",
                         stiffness: 100,
                         damping: 15,
-                        duration: 0.6 
+                        duration: 0.6,
                       }}
                     >
                       <ResultsViewer
