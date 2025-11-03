@@ -332,7 +332,7 @@ export function Table({ items, columns, itemsPerPage = 10, keyMap, tableType }: 
   return (
     <div className="w-full">
       {/* Header com filtros */}
-      <div className="flex flex-col md:flex-row justify-between mb-4 gap-4">
+      <div className="flex flex-col md:flex-row justify-between mb-4 gap-4" data-tour="filter-section">
         <div className="flex items-center">
           <span className="text-sm text-gray-500 mr-2">
             Exibindo {Math.min(filteredItems.length, startIndex + 1)}-{Math.min(
@@ -343,7 +343,9 @@ export function Table({ items, columns, itemsPerPage = 10, keyMap, tableType }: 
           </span>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex flex-col sm:flex-row gap-2" >
+                  <div data-tour="filter-type">
+
           <SelectField
             id="filterType"
             name="filterType"
@@ -352,6 +354,7 @@ export function Table({ items, columns, itemsPerPage = 10, keyMap, tableType }: 
             options={options}
             className="w-56"
           />
+          </div>
 
           {filterType === "year" ? (
             <InputField
@@ -394,7 +397,7 @@ export function Table({ items, columns, itemsPerPage = 10, keyMap, tableType }: 
         {/* ... resto do código da tabela permanece igual */}
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50" data-tour="table-header">
               <tr>
                 {columns.map((column, index) => (
                   <th 
@@ -410,7 +413,7 @@ export function Table({ items, columns, itemsPerPage = 10, keyMap, tableType }: 
                 ))}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-gray-200" data-tour="table-data">
               {currentItems.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length} className="px-6 py-12 text-center text-gray-500">
@@ -466,7 +469,7 @@ export function Table({ items, columns, itemsPerPage = 10, keyMap, tableType }: 
         </div>
         
         {/* Footer da tabela com paginação */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200" data-tour="pagination">
           <div className="flex flex-col sm:flex-row items-center justify-between">
             <div className="mb-4 sm:mb-0">
               <p className="text-sm text-gray-700">

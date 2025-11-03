@@ -5,6 +5,10 @@ import { BlueTitleCard } from "../../components/BlueTitleCard";
 import { ConsultaForm } from "../../components/ConsultaForm";
 import { LoadingIndicator } from "../../components/LoadingIndicator";
 import { ResultsViewer } from "../../components/ResultsViewer";
+import { TourGuide } from "../../components/TourGuide";
+import { TourSectionMenu } from "../../components/TourSectionMenu";
+import { TourRestartButton } from "../../components/TourRestartButton";
+import { useConsultaPageTour } from "../../hooks/useConsultaPageTour";
 import { useTransparenciaData } from "../../hooks/useTransparenciaData";
 import type { DadosConsulta, FormData } from "../../types/consulta";
 import Swal from "sweetalert2";
@@ -56,6 +60,8 @@ export function ConsultaPage() {
     retryFetch,
     error,
   } = useTransparenciaData();
+
+  const tour = useConsultaPageTour();
 
   // Estado para armazenar parâmetros da última consulta
   const [parametrosConsulta, setParametrosConsulta] = useState<{
@@ -134,22 +140,26 @@ export function ConsultaPage() {
             exit="exit"
             className="flex-grow"
           >
-            <BlueTitleCard
-              title="Consulta de Financiamento"
-              subtitle="Consulte os dados de financiamento das universidades estaduais do Paraná"
-            />
+            <div data-tour="title-section">
+              <BlueTitleCard
+                title="Consulta de Financiamento"
+                subtitle="Consulte os dados de financiamento das universidades estaduais do Paraná com correção monetária automática pelo IPCA"
+              />
+            </div>
 
             <div className="flex-grow bg-gray-50 py-8">
-              <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Formulário de Consulta */}
                 <motion.div variants={itemVariants} className="mb-6">
-                  <ConsultaForm
-                    onSubmit={handleSubmit}
-                    isLoading={isLoading}
-                    listaIPCA={listaIPCA}
-                    listaIPCAAnual={listaIPCAAnual}
-                    carregarMediasAnuais={carregarMediasAnuais}
-                  />
+                  <div data-tour="consulta-form">
+                    <ConsultaForm
+                      onSubmit={handleSubmit}
+                      isLoading={isLoading}
+                      listaIPCA={listaIPCA}
+                      listaIPCAAnual={listaIPCAAnual}
+                      carregarMediasAnuais={carregarMediasAnuais}
+                    />
+                  </div>
                 </motion.div>
 
                 {/* Loading com indicador de progresso */}
@@ -162,18 +172,20 @@ export function ConsultaPage() {
                       exit={{ opacity: 0, scale: 0.9 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <LoadingIndicator
-                        message={loadingMessage}
-                        progresso={progressoConsulta.percentual}
-                        registrosProcessados={
-                          progressoConsulta.registrosProcessados
-                        }
-                        totalRegistros={progressoConsulta.totalRegistros}
-                        anosProcessados={progressoConsulta.anosProcessados}
-                        anoInicial={progressoConsulta.anoInicial}
-                        anoFinal={progressoConsulta.anoFinal}
-                        onCancel={handleCancelarConsulta}
-                      />
+                      <div data-tour="loading-indicator">
+                        <LoadingIndicator
+                          message={loadingMessage}
+                          progresso={progressoConsulta.percentual}
+                          registrosProcessados={
+                            progressoConsulta.registrosProcessados
+                          }
+                          totalRegistros={progressoConsulta.totalRegistros}
+                          anosProcessados={progressoConsulta.anosProcessados}
+                          anoInicial={progressoConsulta.anoInicial}
+                          anoFinal={progressoConsulta.anoFinal}
+                          onCancel={handleCancelarConsulta}
+                        />
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -193,10 +205,12 @@ export function ConsultaPage() {
                         duration: 0.6,
                       }}
                     >
-                      <ResultsViewer
-                        dados={dadosConsulta}
-                        parametrosConsulta={parametrosConsulta}
-                      />
+                      <div data-tour="results-viewer">
+                        <ResultsViewer
+                          dados={dadosConsulta}
+                          parametrosConsulta={parametrosConsulta}
+                        />
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -205,7 +219,56 @@ export function ConsultaPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
       <Footer />
+
+      {/* Tour Guide com navegação entre seções */}
+      <TourGuide
+        isActive={tour.isActive}
+        currentStep={tour.currentStep}
+        totalSteps={tour.totalSteps}
+        currentStepData={tour.currentStepData}
+        onNext={tour.nextStep}
+        onPrev={tour.prevStep}
+        onSkip={tour.skipTour}
+        onClose={tour.closeTour}
+        onCancel={tour.cancelTour}
+        onSkipAll={tour.skipAllTours}
+        extraButtons={
+          <button
+            onClick={() => tour.setShowSectionMenu(true)}
+            className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors text-sm flex items-center gap-1"
+            title="Navegar entre seções"
+          >
+            🗺️ Seções
+          </button>
+        }
+        sectionInfo={{
+          current: tour.tourSections.find(s => s.id === tour.currentSection)?.title || '',
+          total: tour.tourSections.length,
+          index: tour.tourSections.findIndex(s => s.id === tour.currentSection) + 1,
+        }}
+      />
+
+      {/* Menu de navegação entre seções */}
+      <TourSectionMenu
+        isOpen={tour.showSectionMenu}
+        onClose={() => tour.setShowSectionMenu(false)}
+        sections={tour.tourSections}
+        currentSection={tour.currentSection}
+        onSelectSection={tour.goToSection}
+        completedTours={tour.completedTours}
+      />
+
+      {/* Botão para reiniciar tour */}
+      <TourRestartButton
+        onRestartTour={tour.restartTour}
+        onRestartAllTours={tour.restartAllTours}
+        tourKey={`consulta_${tour.currentSection}`}
+        completedTours={tour.completedTours}
+        completedToursCount={tour.completedToursCount}
+        isFirstTimeUser={tour.isFirstTimeUser}
+      />
     </div>
   );
 }

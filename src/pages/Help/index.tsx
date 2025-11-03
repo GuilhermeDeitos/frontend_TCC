@@ -1,6 +1,9 @@
 import { BlueTitleCard } from "../../components/BlueTitleCard";
 import { Footer } from "../../components/Footer";
-import { Header } from "../../components/Header"
+import { Header } from "../../components/Header";
+import { TourGuide } from "../../components/TourGuide";
+import { TourRestartButton } from "../../components/TourRestartButton";
+import { useHelpPageTour } from "../../hooks/useHelpPageTour";
 import { useState } from "react";
 
 interface FAQItem {
@@ -11,6 +14,7 @@ interface FAQItem {
 
 export function HelpPage(){
   const [openItem, setOpenItem] = useState<number | null>(null);
+  const tour = useHelpPageTour();
 
   const faqData: FAQItem[] = [
     // Questões Gerais
@@ -131,15 +135,20 @@ export function HelpPage(){
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <BlueTitleCard
-        title="Central de Ajuda"
-        subtitle="Encontre aqui respostas para as dúvidas mais comuns sobre o portal, os dados e as funcionalidades oferecidas."
-      />
+      <div data-tour="title-section">
+        <BlueTitleCard
+          title="Central de Ajuda"
+          subtitle="Encontre aqui respostas para as dúvidas mais comuns sobre o portal, os dados e as funcionalidades oferecidas."
+        />
+      </div>
 
       <div className="flex-grow bg-gray-50 py-12 sm:py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <div 
+            className="bg-white rounded-lg shadow-md p-6 mb-8"
+            data-tour="quick-navigation"
+          >
             <h2 className="text-xl font-bold text-gray-900 mb-4">Navegação Rápida</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {categories.map((category, index) => (
@@ -156,7 +165,16 @@ export function HelpPage(){
 
           {/* FAQ por categorias */}
           {categories.map((category, categoryIndex) => (
-            <div key={categoryIndex} className="mb-8">
+            <div 
+              key={categoryIndex} 
+              className="mb-8"
+              data-tour={
+                category === "Questões Gerais" ? "category-general" :
+                category === "Entendendo os Dados" ? "category-data" :
+                category === "Como Usar o Portal" ? "category-usage" :
+                "category-developers"
+              }
+            >
               <h2 
                 id={category.replace(/\s+/g, '-').toLowerCase()}
                 className="text-2xl font-bold text-gray-900 mb-6 border-b-2 border-blue-600 pb-2"
@@ -169,8 +187,14 @@ export function HelpPage(){
                   .filter(item => item.category === category)
                   .map((item, itemIndex) => {
                     const globalIndex = faqData.indexOf(item);
+                    const isFirstItem = categoryIndex === 0 && itemIndex === 0;
+                    
                     return (
-                      <div key={itemIndex} className="bg-white rounded-lg shadow-md">
+                      <div 
+                        key={itemIndex} 
+                        className="bg-white rounded-lg shadow-md"
+                        data-tour={isFirstItem ? "faq-item" : undefined}
+                      >
                         <button
                           onClick={() => toggleItem(globalIndex)}
                           className="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
@@ -202,7 +226,10 @@ export function HelpPage(){
             </div>
           ))}
 
-          <div className="bg-blue-600 text-white rounded-lg p-8 text-center">
+          <div 
+            className="bg-blue-600 text-white rounded-lg p-8 text-center"
+            data-tour="contact-section"
+          >
             <h2 className="text-2xl font-bold mb-4">Não encontrou sua resposta?</h2>
             <p className="mb-6 text-blue-100">
               Nossa equipe está pronta para ajudar! Entre em contato conosco e responderemos sua dúvida o mais rápido possível.
@@ -226,6 +253,30 @@ export function HelpPage(){
       </div>
 
       <Footer />
+
+      {/* Tour Guide */}
+      <TourGuide
+        isActive={tour.isActive}
+        currentStep={tour.currentStep}
+        totalSteps={tour.totalSteps}
+        currentStepData={tour.currentStepData}
+        onNext={tour.nextStep}
+        onPrev={tour.prevStep}
+        onSkip={tour.skipTour}
+        onClose={tour.closeTour}
+        onCancel={tour.cancelTour}
+        onSkipAll={tour.skipAllTours}
+      />
+
+      {/* Botão para reiniciar tour */}
+      <TourRestartButton
+        onRestartTour={tour.restartTour}
+        onRestartAllTours={tour.restartAllTours}
+        tourKey="helpPage"
+        completedTours={tour.completedTours}
+        completedToursCount={tour.completedToursCount}
+        isFirstTimeUser={tour.isFirstTimeUser}
+      />
     </div>
   );
 }

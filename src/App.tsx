@@ -1,6 +1,12 @@
 import { Router } from "./Routes/Router";
+import { TourProvider } from "./provider/TourProvider";
+
 function App() {
-  return <Router />;
+  return (
+    <TourProvider>
+      <Router />
+    </TourProvider>
+  );
 }
 
-export default App
+export default App;

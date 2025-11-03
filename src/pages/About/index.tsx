@@ -1,12 +1,20 @@
 import { Footer } from "../../components/Footer";
-import { Header } from "../../components/Header"
+import { Header } from "../../components/Header";
+import { TourGuide } from "../../components/TourGuide";
+import { TourRestartButton } from "../../components/TourRestartButton";
+import { useAboutPageTour } from "../../hooks/useAboutPageTour";
 
 export function AboutPage() {
+  const tour = useAboutPageTour();
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16 sm:py-20">
+      <div 
+        className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16 sm:py-20"
+        data-tour="hero-section"
+      >
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">Sobre o SAD-UEPR</h1>
           <p className="text-lg sm:text-xl text-blue-100 max-w-2xl mx-auto">
@@ -18,7 +26,7 @@ export function AboutPage() {
       <div className="flex-grow bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
           
-          <section className="mb-12">
+          <section className="mb-12" data-tour="project-section">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">O Projeto</h2>
             <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed">
               <p className="mb-4">
@@ -30,7 +38,7 @@ export function AboutPage() {
             </div>
           </section>
 
-          <section className="mb-12">
+          <section className="mb-12" data-tour="problem-section">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">O Problema: Dados Dispersos e Análises Complexas</h2>
             <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed">
               <p className="mb-4">
@@ -38,14 +46,20 @@ export function AboutPage() {
               </p>
               
               <div className="grid md:grid-cols-2 gap-6 mt-6">
-                <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
+                <div 
+                  className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg"
+                  data-tour="fragmentation-card"
+                >
                   <h3 className="font-bold text-red-800 mb-2">1. Fragmentação dos Dados</h3>
                   <p className="text-red-700 text-sm">
                     As informações financeiras estão dispersas em diferentes portais governamentais, exigindo um esforço manual, repetitivo e sujeito a erros para serem coletadas e consolidadas.
                   </p>
                 </div>
                 
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
+                <div 
+                  className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg"
+                  data-tour="correction-card"
+                >
                   <h3 className="font-bold text-yellow-800 mb-2">2. Falta de Correção Monetária</h3>
                   <p className="text-yellow-700 text-sm">
                     Os valores apresentados em fontes oficiais raramente consideram o efeito da inflação ao longo do tempo, tornando enganosa a comparação de orçamentos entre diferentes anos.
@@ -55,7 +69,7 @@ export function AboutPage() {
             </div>
           </section>
 
-          <section className="mb-12">
+          <section className="mb-12" data-tour="mission-section">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">Nossa Missão</h2>
             <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed">
               <p className="mb-6">O SAD-UEPR foi desenvolvido com os seguintes objetivos principais:</p>
@@ -96,13 +110,16 @@ export function AboutPage() {
             </div>
           </section>
 
-          <section className="mb-12">
+          <section className="mb-12" data-tour="how-works-section">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">Como o Sistema Funciona?</h2>
             <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed">
               <p className="mb-6">Para atingir seus objetivos, o SAD-UEPR emprega uma arquitetura moderna e robusta:</p>
               
               <div className="space-y-6">
-                <div className="bg-gray-50 p-6 rounded-lg border-l-4 border-blue-600">
+                <div 
+                  className="bg-gray-50 p-6 rounded-lg border-l-4 border-blue-600"
+                  data-tour="scraping-step"
+                >
                   <h3 className="font-bold text-gray-900 mb-2 flex items-center">
                     <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-3">1</span>
                     Coleta Automatizada (<i>Web Scraping</i>)
@@ -112,7 +129,10 @@ export function AboutPage() {
                   </p>
                 </div>
                 
-                <div className="bg-gray-50 p-6 rounded-lg border-l-4 border-green-600">
+                <div 
+                  className="bg-gray-50 p-6 rounded-lg border-l-4 border-green-600"
+                  data-tour="processing-step"
+                >
                   <h3 className="font-bold text-gray-900 mb-2 flex items-center">
                     <span className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-3">2</span>
                     Processamento e Correção
@@ -122,7 +142,10 @@ export function AboutPage() {
                   </p>
                 </div>
                 
-                <div className="bg-gray-50 p-6 rounded-lg border-l-4 border-purple-600">
+                <div 
+                  className="bg-gray-50 p-6 rounded-lg border-l-4 border-purple-600"
+                  data-tour="api-step"
+                >
                   <h3 className="font-bold text-gray-900 mb-2 flex items-center">
                     <span className="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-3">3</span>
                     Disponibilização via API
@@ -135,7 +158,7 @@ export function AboutPage() {
             </div>
           </section>
 
-          <section className="mb-12">
+          <section className="mb-12" data-tour="author-section">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">Sobre o Autor e Orientadores</h2>
             <div className="bg-blue-50 p-6 rounded-lg">
               <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed">
@@ -146,10 +169,13 @@ export function AboutPage() {
             </div>
           </section>
 
-          <section className="text-center bg-gradient-to-r from-blue-600 to-blue-800 text-white p-8 rounded-lg">
+          <section 
+            className="text-center bg-gradient-to-r from-blue-600 to-blue-800 text-white p-8 rounded-lg"
+            data-tour="cta-section"
+          >
             <h2 className="text-2xl font-bold mb-4">Explore o Sistema</h2>
             <p className="mb-6">Conheça as ferramentas disponíveis e comece a analisar os dados das universidades estaduais do Paraná.</p>
-            <a href="/" className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+            <a href="/" className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-block">
               Voltar ao Início
             </a>
           </section>
@@ -157,6 +183,30 @@ export function AboutPage() {
       </div>
 
       <Footer />
+
+      {/* Tour Guide */}
+      <TourGuide
+        isActive={tour.isActive}
+        currentStep={tour.currentStep}
+        totalSteps={tour.totalSteps}
+        currentStepData={tour.currentStepData}
+        onNext={tour.nextStep}
+        onPrev={tour.prevStep}
+        onSkip={tour.skipTour}
+        onClose={tour.closeTour}
+        onCancel={tour.cancelTour}
+        onSkipAll={tour.skipAllTours}
+      />
+
+      {/* Botão para reiniciar tour */}
+      <TourRestartButton
+        onRestartTour={tour.restartTour}
+        onRestartAllTours={tour.restartAllTours}
+        tourKey="aboutPage"
+        completedTours={tour.completedTours}
+        completedToursCount={tour.completedToursCount}
+        isFirstTimeUser={tour.isFirstTimeUser}
+      />
     </div>
   );
 }

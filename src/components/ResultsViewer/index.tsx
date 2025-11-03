@@ -45,7 +45,10 @@ export function ResultsViewer({
 
   // Fechar modal ao clicar fora
   const handleBackdropClick = (e: React.MouseEvent) => {
-    if (modalContentRef.current && !modalContentRef.current.contains(e.target as Node)) {
+    if (
+      modalContentRef.current &&
+      !modalContentRef.current.contains(e.target as Node)
+    ) {
       setModalAberto(false);
     }
   };
@@ -53,20 +56,20 @@ export function ResultsViewer({
   // Fechar modal com tecla ESC
   useEffect(() => {
     const handleEscKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && modalAberto) {
+      if (e.key === "Escape" && modalAberto) {
         setModalAberto(false);
       }
     };
 
     if (modalAberto) {
-      document.addEventListener('keydown', handleEscKey);
+      document.addEventListener("keydown", handleEscKey);
       // Prevenir rolagem do body quando modal está aberto
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEscKey);
-      document.body.style.overflow = '';
+      document.removeEventListener("keydown", handleEscKey);
+      document.body.style.overflow = "";
     };
   }, [modalAberto]);
 
@@ -169,11 +172,12 @@ export function ResultsViewer({
     if (!modalAberto) return null;
 
     return (
-      <div 
+      <div
         className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-hidden"
         onClick={handleBackdropClick}
+        data-tour="correction-modal"
       >
-        <div 
+        <div
           ref={modalContentRef}
           className="bg-white rounded-lg shadow-xl w-full max-w-4xl flex flex-col max-h-[90vh]"
           onClick={(e) => e.stopPropagation()}
@@ -305,7 +309,10 @@ export function ResultsViewer({
               </table>
             </div>
 
-            <div className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
+            <div
+              className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm"
+              data-tour="correction-interpretation"
+            >
               <h4 className="text-md font-medium text-amber-800 mb-2 flex items-center gap-1">
                 <svg
                   className="w-4 h-4"
@@ -586,7 +593,10 @@ export function ResultsViewer({
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       {/* Controles de Visualização */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+      <div
+        className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4"
+        data-tour="view-toggle"
+      >
         <div className="flex gap-2">
           <button
             onClick={() => setTipoVisualizacao("tabela")}
@@ -611,12 +621,14 @@ export function ResultsViewer({
         </div>
 
         {/* Opções de Download */}
-        <DownloadOptions dados={dados} />
+        <div data-tour="export-options">
+          <DownloadOptions dados={dados} />
+        </div>
       </div>
 
       {/* Visualização */}
       {tipoVisualizacao === "tabela" ? (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" data-tour="table-view">
           <Table
             items={mapDataForTable()}
             columns={getTableColumns()}
@@ -626,18 +638,23 @@ export function ResultsViewer({
           />
         </div>
       ) : (
-        <div>
+        <div data-tour="chart-area">
           {/* Opções de comparação para gráficos */}
-          <ComparacaoSelector
-            tipoComparacao={tipoComparacao}
-            setTipoComparacao={setTipoComparacao}
-            campoSelecionado={campoComparacao}
-            setCampoSelecionado={setCampoComparacao}
-          />
+          <div data-tour="comparison-selector">
+            <ComparacaoSelector
+              tipoComparacao={tipoComparacao}
+              setTipoComparacao={setTipoComparacao}
+              campoSelecionado={campoComparacao}
+              setCampoSelecionado={setCampoComparacao}
+            />
+          </div>
 
           {/* Seletor de ano para evolução anual */}
           {tipoComparacao === "evolucao_anual" && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <div
+              className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md"
+              data-tour="year-filter"
+            >
               <label className="block text-sm font-medium text-blue-700 mb-1">
                 Filtrar por Ano:
               </label>
@@ -661,7 +678,12 @@ export function ResultsViewer({
             </div>
           )}
           {/* Tipo de gráfico */}
-          <ChartSelector tipoGrafico={tipoGrafico} onChange={setTipoGrafico} />
+          <div data-tour="chart-type">
+            <ChartSelector
+              tipoGrafico={tipoGrafico}
+              onChange={setTipoGrafico}
+            />
+          </div>
 
           {/* Título do gráfico */}
           <h3 className="text-center text-lg font-medium text-gray-800 mb-2">
@@ -673,38 +695,60 @@ export function ResultsViewer({
           </h3>
 
           {/* Exibição do gráfico */}
-          <ChartDisplay
-            dados={prepararDadosGrafico()}
-            tipoGrafico={tipoGrafico}
-          />
+          <div data-tour="chart-display">
+            <ChartDisplay
+              dados={prepararDadosGrafico()}
+              tipoGrafico={tipoGrafico}
+            />
+          </div>
         </div>
       )}
 
       {/* Novo rodapé com informações de correção monetária */}
       {dados.length > 0 && infoCorrecaoBasica && (
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg flex justify-between items-center">
+        <div
+          className="mt-6 p-4 bg-blue-50 rounded-lg flex justify-between items-center"
+          data-tour="correcao-footer"
+        >
           <div className="text-sm">
-            <span className="font-medium text-blue-800">Valores corrigidos para:</span>{" "}
-            <span className="text-blue-700">{infoCorrecaoBasica.periodo_referencia}</span>
+            <span className="font-medium text-blue-800">
+              Valores corrigidos para:
+            </span>{" "}
+            <span className="text-blue-700">
+              {infoCorrecaoBasica.periodo_referencia}
+            </span>
           </div>
-          
+
           <button
             onClick={() => setModalAberto(true)}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm flex items-center gap-1 cursor-pointer" 
+            className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm flex items-center gap-1 cursor-pointer"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             Detalhes da Correção ({infoCorrecaoBasica.total_anos} anos)
           </button>
         </div>
       )}
-      
+
       {/* Modal de detalhes de correção */}
       <ModalDetalhesCorrecao />
       {/* Aviso de anos ausentes */}
       {anosAusentes.length > 0 && (
-        <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+        <div
+          className="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg"
+          data-tour="anos-ausentes"
+        >
           <h3 className="text-md font-semibold text-yellow-800 flex items-center">
             <svg
               className="w-5 h-5 mr-2"

@@ -28,12 +28,12 @@ interface ConsultaFormProps {
   carregarMediasAnuais: () => void;
 }
 
-export function ConsultaForm({ 
-  onSubmit, 
-  isLoading, 
-  listaIPCA, 
-  listaIPCAAnual, 
-  carregarMediasAnuais 
+export function ConsultaForm({
+  onSubmit,
+  isLoading,
+  listaIPCA,
+  listaIPCAAnual,
+  carregarMediasAnuais,
 }: ConsultaFormProps) {
   const [formData, setFormData] = useState<FormData>({
     tipoCorrecao: "",
@@ -41,7 +41,7 @@ export function ConsultaForm({
     mesInicial: "",
     anoInicial: "",
     mesFinal: "",
-    anoFinal: ""
+    anoFinal: "",
   });
 
   // Quando tipo de correção mudar, carregar médias anuais se necessário
@@ -51,35 +51,42 @@ export function ConsultaForm({
     }
   }, [formData.tipoCorrecao, carregarMediasAnuais]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
-    
+
     // Se mudou o tipo de correção, limpar a referência IPCA
     if (name === "tipoCorrecao" && value !== formData.tipoCorrecao) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         [name]: value,
-        ipcaReferencia: "" // Limpar seleção anterior
+        ipcaReferencia: "", // Limpar seleção anterior
       }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [name]: value
+        [name]: value,
       }));
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validações básicas
-    if (!formData.tipoCorrecao || !formData.ipcaReferencia || 
-        !formData.mesInicial || !formData.anoInicial || 
-        !formData.mesFinal || !formData.anoFinal) {
+    if (
+      !formData.tipoCorrecao ||
+      !formData.ipcaReferencia ||
+      !formData.mesInicial ||
+      !formData.anoInicial ||
+      !formData.mesFinal ||
+      !formData.anoFinal
+    ) {
       Swal.fire({
         icon: "error",
         title: "Atenção",
-        text: "Por favor, preencha todos os campos."
+        text: "Por favor, preencha todos os campos.",
       });
       return;
     }
@@ -94,7 +101,7 @@ export function ConsultaForm({
       Swal.fire({
         icon: "error",
         title: "Atenção",
-        text: "O ano final não pode ser anterior ao ano inicial."
+        text: "O ano final não pode ser anterior ao ano inicial.",
       });
       return;
     }
@@ -104,7 +111,7 @@ export function ConsultaForm({
       Swal.fire({
         icon: "error",
         title: "Atenção",
-        text: "O mês final não pode ser anterior ao mês inicial no mesmo ano."
+        text: "O mês final não pode ser anterior ao mês inicial no mesmo ano.",
       });
       return;
     }
@@ -114,7 +121,7 @@ export function ConsultaForm({
       Swal.fire({
         icon: "error",
         title: "Atenção",
-        text: "O período de consulta deve estar entre 2002 e 2023."
+        text: "O período de consulta deve estar entre 2002 e 2023.",
       });
       return;
     }
@@ -127,8 +134,11 @@ export function ConsultaForm({
       title="Parâmetros da Consulta"
       subtitle={
         <>
-          Configure os filtros para buscar os dados desejados.<br/>
-          <span className="text-sm text-gray-500">Período de dados disponível: 2002 a 2023</span>
+          Configure os filtros para buscar os dados desejados.
+          <br />
+          <span className="text-sm text-gray-500">
+            Período de dados disponível: 2002 a 2023
+          </span>
         </>
       }
       onSubmit={handleSubmit}
@@ -137,82 +147,91 @@ export function ConsultaForm({
       className="mb-8"
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SelectField
-          id="tipoCorrecao"
-          name="tipoCorrecao"
-          label="Tipo de Correção"
-          required
-          value={formData.tipoCorrecao}
-          onChange={handleChange}
-          options={[
-            { value: "mensal", label: "IPCA Mensal" },
-            { value: "anual", label: "IPCA Anual (Média)" }
-          ]}
-        />
-
-        <SelectField
-          id="ipcaReferencia"
-          name="ipcaReferencia"
-          label="IPCA de Referência"
-          required
-          value={formData.ipcaReferencia}
-          onChange={handleChange}
-          options={formData.tipoCorrecao === "anual" ? listaIPCAAnual : listaIPCA}
-          placeholder={formData.tipoCorrecao === "anual" 
-            ? "Selecione o ano de referência" 
-            : "Selecione o período de referência"
-          }
-        />
+        <div data-tour="tipo-correcao">
+          <SelectField
+            id="tipoCorrecao"
+            name="tipoCorrecao"
+            label="Tipo de Correção"
+            required
+            value={formData.tipoCorrecao}
+            onChange={handleChange}
+            options={[
+              { value: "mensal", label: "IPCA Mensal" },
+              { value: "anual", label: "IPCA Anual (Média)" },
+            ]}
+          />
+        </div>
+        <div data-tour="ipca-referencia">
+          <SelectField
+            id="ipcaReferencia"
+            name="ipcaReferencia"
+            label="IPCA de Referência"
+            required
+            value={formData.ipcaReferencia}
+            onChange={handleChange}
+            options={
+              formData.tipoCorrecao === "anual" ? listaIPCAAnual : listaIPCA
+            }
+            placeholder={
+              formData.tipoCorrecao === "anual"
+                ? "Selecione o ano de referência"
+                : "Selecione o período de referência"
+            }
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <InputGroup>
-          <SelectField
-            id="mesInicial"
-            name="mesInicial"
-            label="Mês Inicial"
-            required
-            value={formData.mesInicial}
-            onChange={handleChange}
-            options={meses}
-          />
-          <SelectField
-            id="anoInicial"
-            name="anoInicial"
-            label="Ano Inicial"
-            required
-            value={formData.anoInicial}
-            onChange={handleChange}
-            options={Array.from({ length: 22 }, (_, i) => {
-              const year = 2002 + i;
-              return { value: year.toString(), label: year.toString() };
-            })}
-          />
-        </InputGroup>
-
-        <InputGroup>
-          <SelectField
-            id="mesFinal"
-            name="mesFinal"
-            label="Mês Final"
-            required
-            value={formData.mesFinal}
-            onChange={handleChange}
-            options={meses}
-          />
-          <SelectField
-            id="anoFinal"
-            name="anoFinal"
-            label="Ano Final"
-            required
-            value={formData.anoFinal}
-            onChange={handleChange}
-            options={Array.from({ length: 22 }, (_, i) => {
-              const year = 2002 + i;
-              return { value: year.toString(), label: year.toString() };
-            })}
-          />
-        </InputGroup>
+        <div data-tour="periodo-inicial">
+          <InputGroup>
+            <SelectField
+              id="mesInicial"
+              name="mesInicial"
+              label="Mês Inicial"
+              required
+              value={formData.mesInicial}
+              onChange={handleChange}
+              options={meses}
+            />
+            <SelectField
+              id="anoInicial"
+              name="anoInicial"
+              label="Ano Inicial"
+              required
+              value={formData.anoInicial}
+              onChange={handleChange}
+              options={Array.from({ length: 22 }, (_, i) => {
+                const year = 2002 + i;
+                return { value: year.toString(), label: year.toString() };
+              })}
+            />
+          </InputGroup>
+        </div>
+        <div data-tour="periodo-final">
+          <InputGroup>
+            <SelectField
+              id="mesFinal"
+              name="mesFinal"
+              label="Mês Final"
+              required
+              value={formData.mesFinal}
+              onChange={handleChange}
+              options={meses}
+            />
+            <SelectField
+              id="anoFinal"
+              name="anoFinal"
+              label="Ano Final"
+              required
+              value={formData.anoFinal}
+              onChange={handleChange}
+              options={Array.from({ length: 22 }, (_, i) => {
+                const year = 2002 + i;
+                return { value: year.toString(), label: year.toString() };
+              })}
+            />
+          </InputGroup>
+        </div>
       </div>
     </Form>
   );
