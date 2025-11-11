@@ -1,16 +1,18 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   HelpCircle,
   CheckCircle,
   Circle,
   RefreshCw,
   RotateCcw,
-  X,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 interface TourRestartButtonProps {
   onRestartTour?: () => void;
   onRestartAllTours?: () => void;
+  onToggleTour?: (tourId: string, completed: boolean) => void; // Nova prop
   size?: "small" | "medium" | "large";
   tourKey?: string;
   completedTours?: string[];
@@ -21,6 +23,7 @@ interface TourRestartButtonProps {
 export function TourRestartButton({
   onRestartTour,
   onRestartAllTours,
+  onToggleTour,
   size = "small",
   tourKey,
   completedTours = [],
@@ -44,21 +47,44 @@ export function TourRestartButton({
   const isMobile = window.innerWidth < 640;
 
   const tourNames: Record<string, string> = {
-  mainPage: '🏠 Tour da Página Principal',
-  calculadoraIPCA: '🧮 Tour da Calculadora IPCA',
-  seriesIPCA: '📊 Tour das Séries IPCA',
-  consulta: '🔍 Tour da Consulta',
-  helpPage: '❓ Tour da Central de Ajuda',
-  aboutPage: 'ℹ️ Tour da Página Sobre',
-  contactPage: '📞 Tour da Página de Contato',
-};
+    mainPage: "🏠 Tour da Página Principal",
+    calculadoraIPCA: "🧮 Tour da Calculadora IPCA",
+    seriesIPCA: "📊 Tour das Séries IPCA",
+    consulta_intro: "🔍 Tour da Consulta - Introdução",
+    consulta_resultados: "📋 Tour dos Resultados",
+    consulta_graficos: "📈 Tour dos Gráficos",
+    consulta_correcao: "💰 Tour da Correção Monetária",
+    helpPage: "❓ Tour da Central de Ajuda",
+    aboutPage: "ℹ️ Tour da Página Sobre",
+    contactPage: "📞 Tour da Página de Contato",
+  };
 
-const allTours = ['mainPage', 'calculadoraIPCA', 'seriesIPCA', 'consulta', 'helpPage', 'aboutPage', 'contactPage'];
+  const allTours = [
+    "mainPage",
+    "calculadoraIPCA",
+    "seriesIPCA",
+    "consulta_intro",
+    "consulta_resultados",
+    "consulta_graficos",
+    "consulta_correcao",
+    "helpPage",
+    "aboutPage",
+    "contactPage",
+  ];
 
   const sizeClasses = {
     small: isMobile ? "w-12 h-12" : "w-14 h-14",
     medium: "w-14 h-14",
     large: "w-16 h-16",
+  };
+
+  // Handler para alternar status do tour
+  const handleToggleTour = (tourId: string) => {
+    const isCompleted = completedTours.includes(tourId);
+
+    if (onToggleTour) {
+      onToggleTour(tourId, !isCompleted);
+    }
   };
 
   return (
@@ -162,6 +188,29 @@ const allTours = ['mainPage', 'calculadoraIPCA', 'seriesIPCA', 'consulta', 'help
                         </div>
                       </div>
 
+                      {/* Botão de toggle */}
+                      {onToggleTour && (
+                        <button
+                          onClick={() => handleToggleTour(tour)}
+                          className={`flex-shrink-0 p-1.5 rounded transition-colors ${
+                            isCompleted
+                              ? "text-green-600 hover:bg-green-100"
+                              : "text-gray-400 hover:bg-gray-200"
+                          }`}
+                          title={
+                            isCompleted
+                              ? "Marcar como não concluído"
+                              : "Marcar como concluído"
+                          }
+                        >
+                          {isCompleted ? (
+                            <EyeOff size={16} />
+                          ) : (
+                            <Eye size={16} />
+                          )}
+                        </button>
+                      )}
+
                       <span
                         className={`text-xs px-2 py-1 rounded ${
                           isCompleted
@@ -178,9 +227,9 @@ const allTours = ['mainPage', 'calculadoraIPCA', 'seriesIPCA', 'consulta', 'help
 
               <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <p className="text-sm text-gray-700">
-                  💡 <strong>Dica:</strong> Os tours são independentes. Você
-                  pode fazer apenas o tour da página que está visitando ou
-                  refazer todos para relembrar todas as funcionalidades.
+                  💡 <strong>Dica:</strong> Use os botões de olho para
+                  marcar/desmarcar tours como completos. Os tours são
+                  independentes - você pode fazer apenas os que interessam!
                 </p>
               </div>
             </div>

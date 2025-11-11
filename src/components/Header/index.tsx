@@ -10,9 +10,9 @@ export function Header(){
 
   const paginas: Record<string, string> = {
     'Início': '/',
+    'Consulta Universidades': '/consulta',
     'Calculadora IPCA': '/calculadora-ipca',
     'Séries IPCA': '/series-ipca',
-    'Consulta': '/consulta',
     'Sobre': '/sobre',
     'Contato': '/contato',
     'Ajuda': '/ajuda'

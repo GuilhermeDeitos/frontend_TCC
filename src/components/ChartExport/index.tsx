@@ -3,7 +3,7 @@ import { toPng, toJpeg, toSvg } from "html-to-image";
 import { motion } from "framer-motion";
 
 interface ChartExportProps {
-  targetRef: React.RefObject<HTMLDivElement>;
+  targetRef: React.RefObject<HTMLDivElement | null>;
   fileName?: string;
 }
 
@@ -67,7 +67,7 @@ export function ChartExport({ targetRef, fileName = "grafico" }: ChartExportProp
   }, []);
 
   return (
-    <div className="relative">
+    <div className="relative" data-tour="chart-export">
       <motion.button
         whileTap={{ scale: 0.95 }}
         className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"

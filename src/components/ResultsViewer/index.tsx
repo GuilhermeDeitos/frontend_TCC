@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo } from "react";
 import type {
   DadosConsulta,
   TipoVisualizacao,
@@ -12,6 +12,10 @@ import { ChartSelector } from "../ChartSelector";
 import { ChartDisplay } from "../ChartDisplay";
 import { DownloadOptions } from "../DownloadOptions";
 import { ComparacaoSelector } from "../ComparacaoSelector";
+import { CorrecaoModal } from "../CorrecaoModal";
+import { ResultsFilterPanel } from "./FilterPanel";
+import { TableControls } from "./TableControls";
+import type { ChartContextType } from "../../types/chart";
 
 interface ResultsViewerProps {
   dados: DadosConsulta[];
@@ -19,7 +23,9 @@ interface ResultsViewerProps {
     anoInicial: number;
     anoFinal: number;
   };
+  onVisualizacaoChange?: (tipo: "tabela" | "grafico") => void;
 }
+
 interface FatorCorrecaoAno {
   ano: number;
   fator_correcao: number;
@@ -28,9 +34,11 @@ interface FatorCorrecaoAno {
   periodo_referencia?: string;
   tipo_correcao?: string;
 }
+
 export function ResultsViewer({
   dados,
   parametrosConsulta,
+  onVisualizacaoChange,
 }: ResultsViewerProps) {
   const [tipoVisualizacao, setTipoVisualizacao] =
     useState<TipoVisualizacao>("tabela");
@@ -41,50 +49,38 @@ export function ResultsViewer({
     useState<TipoComparacao>("universidades");
   const [anoSelecionado, setAnoSelecionado] = useState<string>("todos");
   const [modalAberto, setModalAberto] = useState(false);
-  const modalContentRef = useRef<HTMLDivElement>(null);
 
-  // Fechar modal ao clicar fora
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (
-      modalContentRef.current &&
-      !modalContentRef.current.contains(e.target as Node)
-    ) {
-      setModalAberto(false);
+  // Novos estados para filtros e controles de tabela
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterValue, setFilterValue] = useState<string>("");
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [selectedUniversidadesEvolucao, setSelectedUniversidadesEvolucao] =
+    useState<string[]>([]);
+
+  const [isCompactMode, setIsCompactMode] = useState<boolean>(false);
+
+  // Handler melhorado para mudança de visualização
+  const handleVisualizacaoChange = (tipo: TipoVisualizacao) => {
+    setTipoVisualizacao(tipo);
+    if (onVisualizacaoChange) {
+      onVisualizacaoChange(tipo);
     }
   };
 
-  // Fechar modal com tecla ESC
-  useEffect(() => {
-    const handleEscKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && modalAberto) {
-        setModalAberto(false);
-      }
-    };
-
-    if (modalAberto) {
-      document.addEventListener("keydown", handleEscKey);
-      // Prevenir rolagem do body quando modal está aberto
-      document.body.style.overflow = "hidden";
-    }
-
-    return () => {
-      document.removeEventListener("keydown", handleEscKey);
-      document.body.style.overflow = "";
-    };
-  }, [modalAberto]);
+  const handleAbrirModalCorrecao = () => {
+    setModalAberto(true);
+  };
 
   // Verificar anos faltantes na consulta
   const anosAusentes = useMemo(() => {
     if (!parametrosConsulta) return [];
 
-    // Extrair anos presentes nos dados (excluindo linhas de Total)
     const anosPresentes = new Set(
       dados
         .filter((item) => !item.universidade.includes("Total"))
         .map((item) => item.ano)
     );
 
-    // Verificar quais anos solicitados estão ausentes
     const anosAusentes = [];
     for (
       let ano = parametrosConsulta.anoInicial;
@@ -103,7 +99,6 @@ export function ResultsViewer({
   const fatoresCorrecaoPorAno = useMemo(() => {
     if (!dados.length) return [];
 
-    // Coletar registros não-Total para cada ano
     const dadosPorAno = new Map<number, DadosConsulta[]>();
 
     dados.forEach((item) => {
@@ -116,14 +111,12 @@ export function ResultsViewer({
       }
     });
 
-    // Extrair fator de correção de um registro representativo de cada ano
     const fatores: FatorCorrecaoAno[] = [];
 
     dadosPorAno.forEach((registrosAno, ano) => {
-      const registroReferencia = registrosAno[0]; // Pegar primeiro registro do ano
+      const registroReferencia = registrosAno[0];
 
       if (registroReferencia) {
-        // Buscar dados de correção nos metadados ou diretamente
         const correcaoAplicada =
           registroReferencia._correcao_aplicada ||
           registroReferencia.correcao_aplicada;
@@ -138,7 +131,6 @@ export function ResultsViewer({
             tipo_correcao: correcaoAplicada.tipo_correcao,
           });
         } else if (registroReferencia.fator_correcao) {
-          // Fallback para campos diretos (menos confiáveis)
           fatores.push({
             ano,
             fator_correcao: registroReferencia.fator_correcao,
@@ -149,15 +141,12 @@ export function ResultsViewer({
       }
     });
 
-    // Ordenar por ano (decrescente)
     return fatores.sort((a, b) => b.ano - a.ano);
   }, [dados]);
 
-  // Extrair informações básicas de correção monetária para referência no botão
   const infoCorrecaoBasica = useMemo(() => {
     if (!fatoresCorrecaoPorAno.length) return null;
 
-    // Pegar o período de referência e tipo de correção (deve ser o mesmo para todos os anos)
     const primeiroFator = fatoresCorrecaoPorAno[0];
 
     return {
@@ -167,221 +156,54 @@ export function ResultsViewer({
     };
   }, [fatoresCorrecaoPorAno]);
 
-  // Componente Modal para detalhes de correção monetária
-  const ModalDetalhesCorrecao = () => {
-    if (!modalAberto) return null;
-
-    return (
-      <div
-        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-hidden"
-        onClick={handleBackdropClick}
-        data-tour="correction-modal"
-      >
-        <div
-          ref={modalContentRef}
-          className="bg-white rounded-lg shadow-xl w-full max-w-4xl flex flex-col max-h-[90vh]"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Cabeçalho do modal */}
-          <div className="flex justify-between items-center p-4 border-b border-gray-300 bg-white sticky top-0 z-10">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <svg
-                className="w-5 h-5 text-blue-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              Detalhes da Correção Monetária
-            </h3>
-            <button
-              onClick={() => setModalAberto(false)}
-              className="text-gray-500 hover:text-gray-700 cursor-pointer"
-              aria-label="Fechar"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-
-          {/* Corpo do modal (área com scroll) */}
-          <div className="p-6 overflow-y-auto flex-grow">
-            <div className="mb-4 bg-blue-50 rounded-lg p-4">
-              <h4 className="text-md font-medium text-blue-800 mb-2">
-                Informações Gerais
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Período de Referência:</span>{" "}
-                  {infoCorrecaoBasica?.periodo_referencia}
-                </div>
-                <div>
-                  <span className="font-medium">Tipo de Correção:</span>{" "}
-                  {infoCorrecaoBasica?.tipo_correcao === "anual"
-                    ? "IPCA Anual (Média)"
-                    : "IPCA Mensal"}
-                </div>
-              </div>
-              <p className="text-xs text-blue-600 mt-3">
-                Os valores foram corrigidos para{" "}
-                {infoCorrecaoBasica?.periodo_referencia} usando{" "}
-                {infoCorrecaoBasica?.tipo_correcao === "anual"
-                  ? "médias anuais"
-                  : "valores mensais"}{" "}
-                do IPCA.
-              </p>
-            </div>
-
-            <h4 className="text-md font-medium text-gray-800 mb-2">
-              Fatores de Correção por Ano
-            </h4>
-
-            {/* Tabela de fatores */}
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Ano
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Fator de Correção
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      IPCA do Período
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      IPCA Referência
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {fatoresCorrecaoPorAno.map((fator) => (
-                    <tr key={fator.ano} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {fator.ano}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">
-                        {fator.fator_correcao.toFixed(4)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {fator.ipca_periodo
-                          ? fator.ipca_periodo.toFixed(4)
-                          : "-"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {fator.ipca_referencia
-                          ? fator.ipca_referencia.toFixed(4)
-                          : "-"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div
-              className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm"
-              data-tour="correction-interpretation"
-            >
-              <h4 className="text-md font-medium text-amber-800 mb-2 flex items-center gap-1">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                Como interpretar
-              </h4>
-              <p className="text-amber-800 mb-2">
-                O fator de correção representa o multiplicador aplicado aos
-                valores originais para atualizá-los monetariamente.
-              </p>
-              <ul className="list-disc list-inside text-amber-700 space-y-1">
-                <li>
-                  Um fator maior que 1 indica que houve inflação no período.
-                </li>
-                <li>
-                  Quanto mais antigo o ano, maior tende a ser o fator de
-                  correção.
-                </li>
-                <li>
-                  Exemplo: um valor de R$ 1.000,00 em 2010 com fator 3,5
-                  equivale a R$ 3.500,00 em{" "}
-                  {infoCorrecaoBasica?.periodo_referencia}.
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Rodapé do modal (fixo) */}
-          <div className="flex justify-end p-4 border-t border-gray-300 bg-white sticky bottom-0 z-10">
-            <button
-              onClick={() => setModalAberto(false)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors cursor-pointer"
-            >
-              Fechar
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Extrair lista de anos disponíveis dos dados
+  // Extrair lista de anos disponíveis
   const anosDisponiveis = useMemo(() => {
     if (!dados.length) return [];
     const anos = [...new Set(dados.map((item) => item.ano.toString()))];
     return anos.sort((a, b) => a.localeCompare(b));
   }, [dados]);
 
-  // Preparar dados para gráficos baseado no tipo de comparação
+  // Opções de filtro baseadas no tipo selecionado
+  const filterOptions = useMemo(() => {
+    if (filterType === "all" || filterType === "year") return [];
+
+    const values = new Set<string>();
+    dados.forEach((item) => {
+      if (!item.universidade.includes("Total")) {
+        const fieldValue = item[filterType as keyof DadosConsulta];
+        if (fieldValue) {
+          values.add(String(fieldValue));
+        }
+      }
+    });
+
+    return Array.from(values)
+      .sort()
+      .map((value) => ({ value, label: value }));
+  }, [dados, filterType]);
+
+  // Filtrar dados da tabela
+  const filteredDados = useMemo(() => {
+    if (filterType === "all" || !filterValue) return dados;
+
+    return dados.filter((item) => {
+      if (filterType === "year") {
+        return item.ano.toString() === filterValue;
+      }
+
+      const fieldValue = item[filterType as keyof DadosConsulta];
+      return String(fieldValue) === filterValue;
+    });
+  }, [dados, filterType, filterValue]);
+
+  // Preparar dados para gráficos
   const prepararDadosGrafico = (): DadoGrafico[] => {
-    // Remover registros com "Total" no universidade para evitar duplicação de valores
     const dadosFiltrados = dados.filter(
       (item) => !item.universidade.includes("Total")
     );
 
     if (tipoComparacao === "universidades") {
-      // Comparação entre universidades para o mesmo campo
       const dadosAgrupados = dadosFiltrados.reduce((acc, item) => {
-        // Filtrar por ano específico se necessário
         if (
           anoSelecionado !== "todos" &&
           item.ano.toString() !== anoSelecionado
@@ -393,7 +215,6 @@ export function ResultsViewer({
         if (!acc[universidade]) {
           acc[universidade] = 0;
         }
-        // Usar o campo selecionado para comparação
         acc[universidade] += item[campoComparacao] || 0;
         return acc;
       }, {} as Record<string, number>);
@@ -405,27 +226,23 @@ export function ResultsViewer({
         }))
         .sort((a, b) => b.valor - a.valor);
     } else if (tipoComparacao === "anos") {
-      // Comparação do mesmo campo entre diferentes anos
       const dadosAgrupados = dadosFiltrados.reduce((acc, item) => {
         const ano = item.ano.toString();
         if (!acc[ano]) {
           acc[ano] = 0;
         }
-        // Usar o campo selecionado para comparação
         acc[ano] += item[campoComparacao] || 0;
         return acc;
       }, {} as Record<string, number>);
 
       return Object.entries(dadosAgrupados)
         .map(([ano, valor]) => ({
-          universidade: `Ano ${ano}`, // Usando o mesmo campo para manter compatibilidade
+          universidade: `Ano ${ano}`,
           valor: Number(valor.toFixed(2)),
         }))
         .sort((a, b) => a.universidade.localeCompare(b.universidade));
     } else if (tipoComparacao === "evolucao_anual") {
-      // Evolução anual agrupada por universidade
       const dadosPorUniversidadeAno = dadosFiltrados.reduce((acc, item) => {
-        // Filtrar por ano específico se selecionado
         if (
           anoSelecionado !== "todos" &&
           item.ano.toString() !== anoSelecionado
@@ -445,13 +262,11 @@ export function ResultsViewer({
           };
         }
 
-        // Usar o campo selecionado para comparação
         acc[chave].valor += item[campoComparacao] || 0;
 
         return acc;
       }, {} as Record<string, { universidade: string; ano: string; valor: number }>);
 
-      // Converter para array
       const resultado = Object.values(dadosPorUniversidadeAno)
         .map((item) => ({
           universidade: `${item.universidade} (${item.ano})`,
@@ -465,25 +280,17 @@ export function ResultsViewer({
     return [];
   };
 
-  // Função para extrair apenas o nome da universidade
-  // Função para extrair apenas o nome da universidade
   const extrairNomeUniversidade = (universidadeCompleta: string): string => {
-    // Remover espaços extras
     let resultado = universidadeCompleta.trim();
 
-    // Verificar se contém o padrão de divisão por "/"
     if (resultado.includes("/")) {
-      // Obter parte após a barra
       resultado = resultado.split("/")[1].trim();
     }
 
-    // Verificar se contém o padrão de divisão por "-"
     if (resultado.includes(" - ")) {
-      // Obter parte após o hífen
       resultado = resultado.split(" - ")[1].trim();
     }
 
-    // Se for uma das siglas conhecidas das universidades, use-a
     const siglas = [
       "UEL",
       "UEM",
@@ -502,7 +309,6 @@ export function ResultsViewer({
     return resultado;
   };
 
-  // Colunas da tabela com todos os campos
   const getTableColumns = () => {
     return [
       "Universidade",
@@ -524,7 +330,6 @@ export function ResultsViewer({
     ];
   };
 
-  // Definir o mapeamento de colunas para propriedades
   const columnKeyMap = {
     Universidade: "universidade",
     Ano: "ano",
@@ -544,10 +349,8 @@ export function ResultsViewer({
     "Pago No Mês (R$)": "pago_no_mes",
   };
 
-  // Mapear os dados para a tabela
   const mapDataForTable = () => {
-    return dados.map((item, index) => {
-      // Extrair apenas o nome da universidade
+    return filteredDados.map((item, index) => {
       const universidadeDisplay = extrairNomeUniversidade(item.universidade);
 
       return {
@@ -580,7 +383,6 @@ export function ResultsViewer({
     });
   };
 
-  // Função auxiliar para formatação de valores monetários
   const formatCurrency = (value: number): string => {
     return value.toLocaleString("pt-BR", {
       style: "currency",
@@ -590,8 +392,17 @@ export function ResultsViewer({
     });
   };
 
+  const chartContext = useMemo((): ChartContextType => {
+    if (tipoComparacao === "anos") return "temporal";
+    if (tipoComparacao === "evolucao_anual") return "evolution";
+    return "comparison";
+  }, [tipoComparacao]);
+
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
+    <div
+      className="bg-white rounded-lg shadow-lg p-6"
+      data-tour="results-viewer"
+    >
       {/* Controles de Visualização */}
       <div
         className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4"
@@ -599,28 +410,27 @@ export function ResultsViewer({
       >
         <div className="flex gap-2">
           <button
-            onClick={() => setTipoVisualizacao("tabela")}
-            className={`px-4 py-2 rounded-lg font-medium ${
+            onClick={() => handleVisualizacaoChange("tabela")}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               tipoVisualizacao === "tabela"
-                ? "bg-blue-600 text-white"
+                ? "bg-blue-600 text-white shadow-lg"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            } cursor-pointer`}
+            }`}
           >
             Tabela
           </button>
           <button
-            onClick={() => setTipoVisualizacao("grafico")}
-            className={`px-4 py-2 rounded-lg font-medium ${
+            onClick={() => handleVisualizacaoChange("grafico")}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               tipoVisualizacao === "grafico"
-                ? "bg-blue-600 text-white"
+                ? "bg-blue-600 text-white shadow-lg"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            } cursor-pointer`}
+            }`}
           >
             Gráfico
           </button>
         </div>
 
-        {/* Opções de Download */}
         <div data-tour="export-options">
           <DownloadOptions dados={dados} />
         </div>
@@ -628,18 +438,41 @@ export function ResultsViewer({
 
       {/* Visualização */}
       {tipoVisualizacao === "tabela" ? (
-        <div className="overflow-x-auto" data-tour="table-view">
-          <Table
-            items={mapDataForTable()}
-            columns={getTableColumns()}
-            keyMap={columnKeyMap}
-            itemsPerPage={10}
-            tableType="comparacao"
+        <>
+          {/* Filtro externo */}
+          <ResultsFilterPanel
+            filterType={filterType}
+            filterValue={filterValue}
+            onFilterTypeChange={setFilterType}
+            onFilterValueChange={setFilterValue}
+            filterOptions={filterOptions}
+            availableYears={anosDisponiveis}
           />
-        </div>
+
+          {/* Controles da tabela */}
+          <TableControls
+            itemsPerPage={itemsPerPage}
+            onItemsPerPageChange={setItemsPerPage}
+            isCompact={isCompactMode}
+            onCompactToggle={() => setIsCompactMode(!isCompactMode)}
+            totalItems={filteredDados.length}
+          />
+
+          {/* Tabela */}
+          <div className="overflow-x-auto" data-tour="table-view">
+            <Table
+              items={mapDataForTable()}
+              columns={getTableColumns()}
+              keyMap={columnKeyMap}
+              itemsPerPage={itemsPerPage}
+              tableType="comparacao"
+              hideFilters={true}
+              isCompact={isCompactMode}
+            />
+          </div>
+        </>
       ) : (
         <div data-tour="chart-area">
-          {/* Opções de comparação para gráficos */}
           <div data-tour="comparison-selector">
             <ComparacaoSelector
               tipoComparacao={tipoComparacao}
@@ -649,7 +482,6 @@ export function ResultsViewer({
             />
           </div>
 
-          {/* Seletor de ano para evolução anual */}
           {tipoComparacao === "evolucao_anual" && (
             <div
               className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md"
@@ -670,14 +502,9 @@ export function ResultsViewer({
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-blue-600 mt-1">
-                {anoSelecionado === "todos"
-                  ? "Mostrando dados de todos os anos"
-                  : `Mostrando apenas dados do ano ${anoSelecionado}`}
-              </p>
             </div>
           )}
-          {/* Tipo de gráfico */}
+
           <div data-tour="chart-type">
             <ChartSelector
               tipoGrafico={tipoGrafico}
@@ -685,7 +512,6 @@ export function ResultsViewer({
             />
           </div>
 
-          {/* Título do gráfico */}
           <h3 className="text-center text-lg font-medium text-gray-800 mb-2">
             {getCampoLabel(campoComparacao)} -{" "}
             {getTipoComparacaoLabel(tipoComparacao)}
@@ -694,20 +520,22 @@ export function ResultsViewer({
               ` (Ano ${anoSelecionado})`}
           </h3>
 
-          {/* Exibição do gráfico */}
           <div data-tour="chart-display">
             <ChartDisplay
               dados={prepararDadosGrafico()}
               tipoGrafico={tipoGrafico}
+              chartContext={chartContext}
+              onUniversidadeSelect={setSelectedUniversidadesEvolucao}
+              selectedUniversidades={selectedUniversidadesEvolucao}
             />
           </div>
         </div>
       )}
 
-      {/* Novo rodapé com informações de correção monetária */}
+      {/* Rodapé com informações de correção */}
       {dados.length > 0 && infoCorrecaoBasica && (
         <div
-          className="mt-6 p-4 bg-blue-50 rounded-lg flex justify-between items-center"
+          className="mt-6 p-4 bg-blue-50 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-3"
           data-tour="correcao-footer"
         >
           <div className="text-sm">
@@ -720,8 +548,8 @@ export function ResultsViewer({
           </div>
 
           <button
-            onClick={() => setModalAberto(true)}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm flex items-center gap-1 cursor-pointer"
+            onClick={handleAbrirModalCorrecao}
+            className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm flex items-center gap-1 cursor-pointer transition-colors"
           >
             <svg
               className="w-4 h-4"
@@ -741,14 +569,15 @@ export function ResultsViewer({
         </div>
       )}
 
-      {/* Modal de detalhes de correção */}
-      <ModalDetalhesCorrecao />
-      {/* Aviso de anos ausentes */}
+      <CorrecaoModal
+        isOpen={modalAberto}
+        onClose={() => setModalAberto(false)}
+        fatoresCorrecao={fatoresCorrecaoPorAno}
+        infoBasica={infoCorrecaoBasica}
+      />
+
       {anosAusentes.length > 0 && (
-        <div
-          className="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg"
-          data-tour="anos-ausentes"
-        >
+        <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
           <h3 className="text-md font-semibold text-yellow-800 flex items-center">
             <svg
               className="w-5 h-5 mr-2"
@@ -769,27 +598,12 @@ export function ResultsViewer({
             Não foram encontrados dados para os seguintes anos:{" "}
             <strong>{anosAusentes.join(", ")}</strong>.
           </p>
-          <p className="text-sm text-yellow-700 mt-2">
-            Recomendações:
-            <ul className="list-disc pl-5 mt-1">
-              <li>Refaça a consulta para tentar obter os dados novamente</li>
-              <li>
-                Se o problema persistir, tente consultar esses anos
-                individualmente
-              </li>
-              <li>
-                Verifique se existem dados disponíveis para esses anos no Portal
-                da Transparência
-              </li>
-            </ul>
-          </p>
         </div>
       )}
     </div>
   );
 }
 
-// Funções auxiliares para labels
 function getCampoLabel(campo: CampoComparacao): string {
   const labels: Record<CampoComparacao, string> = {
     orcamento_inicial_loa: "Orçamento Inicial (LOA)",

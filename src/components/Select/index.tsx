@@ -3,13 +3,14 @@
 interface SelectFieldProps {
   id: string;
   name: string;
-  label: string;
+  label?: string;
   required?: boolean;
   value: string;
   onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   disabled?: boolean;
   options: { value: string; label: string }[];
   placeholder?: string;
+  className?: string;
 }
 
 
@@ -22,10 +23,11 @@ export function SelectField({
   onChange,
   disabled = false,
   options,
-  placeholder = 'Selecione uma opção'
+  placeholder = 'Selecione uma opção',
+  className
 }: SelectFieldProps) {
   return (
-    <div>
+    <div className={className}>
       <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-2">
         {label} {required && <span className="text-red-500">*</span>}
       </label>

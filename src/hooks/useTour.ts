@@ -1,302 +1,259 @@
-import { useState, useCallback, useRef } from "react";
-import { useTourContext } from "../context/TourContext";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
 interface TourStep {
   id: string;
   target: string;
   title: string;
   content: string;
-  placement?: "top" | "bottom" | "left" | "right";
-  action?: () => void;
+  placement?: "top" | "right" | "bottom" | "left"; 
   condition?: () => boolean;
-  waitForElement?: boolean;
 }
 
-interface TourState {
-  isActive: boolean;
-  currentStep: number;
-  steps: TourStep[];
-}
+export function useTour(tourKey: string, steps: TourStep[]) {
+  const [isActive, setIsActive] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [completedTours, setCompletedTours] = useState<string[]>([]);
+  const [startedThisSession, setStartedThisSession] = useState<Set<string>>(
+    new Set()
+  );
+  const [skippedTours, setSkippedTours] = useState<string[]>([]);
 
-interface TourSteps {
-  [key: string]: boolean;
-}
+  // Carregar tours completados do localStorage
+  useEffect(() => {
+    const completed = localStorage.getItem("completedTours");
+    const skipped = localStorage.getItem("skippedTours");
 
-const TOUR_STORAGE_KEY = "@sad-uepr:tour-steps";
-
-export function useTour(tourId: string, steps: TourStep[]) {
-  const [tourState, setTourState] = useState<TourState>({
-    isActive: false,
-    currentStep: 0,
-    steps: [],
-  });
-
-  const hasStartedRef = useRef(false);
-  const isCancelledRef = useRef(false);
-  
-  // Integrar com o contexto
-  const tourContext = useTourContext();
-
-  const isTourCompleted = useCallback(() => {
-    try {
-      const tourSteps: TourSteps = JSON.parse(
-        localStorage.getItem(TOUR_STORAGE_KEY) || "{}"
-      );
-      return tourSteps[tourId] === true;
-    } catch {
-      return false;
+    if (completed) {
+      setCompletedTours(JSON.parse(completed));
     }
-  }, [tourId]);
-
-  const markTourCompleted = useCallback(() => {
-    try {
-      const tourSteps: TourSteps = JSON.parse(
-        localStorage.getItem(TOUR_STORAGE_KEY) || "{}"
-      );
-      tourSteps[tourId] = true;
-      localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify(tourSteps));
-      
-      // Atualizar contexto
-      tourContext.completeTour(tourId);
-      
-      console.log(`✅ Tour ${tourId} marcado como completado`);
-    } catch (error) {
-      console.error("Erro ao salvar progresso do tour:", error);
-    }
-  }, [tourId, tourContext]);
-
-  const isFirstTimeUser = useCallback(() => {
-    try {
-      const tourSteps: TourSteps = JSON.parse(
-        localStorage.getItem(TOUR_STORAGE_KEY) || "{}"
-      );
-      return Object.keys(tourSteps).length === 0;
-    } catch {
-      return true;
+    if (skipped) {
+      setSkippedTours(JSON.parse(skipped));
     }
   }, []);
 
-  const getCompletedToursCount = useCallback(() => {
-    try {
-      const tourSteps: TourSteps = JSON.parse(
-        localStorage.getItem(TOUR_STORAGE_KEY) || "{}"
-      );
-      return Object.values(tourSteps).filter(Boolean).length;
-    } catch {
-      return 0;
-    }
-  }, []);
+  // Verificar se é primeira visita do usuário (nenhum tour completado)
+  const isFirstTimeUser = useMemo(() => {
+    return completedTours.length === 0 && skippedTours.length === 0;
+  }, [completedTours, skippedTours]);
 
-  const getCompletedTours = useCallback(() => {
-    try {
-      const tourSteps: TourSteps = JSON.parse(
-        localStorage.getItem(TOUR_STORAGE_KEY) || "{}"
-      );
-      return Object.keys(tourSteps).filter((key) => tourSteps[key]);
-    } catch {
-      return [];
-    }
-  }, []);
+  // Verificar se este tour específico foi completado
+  const isTourCompleted = useMemo(() => {
+    return completedTours.includes(tourKey) || skippedTours.includes(tourKey);
+  }, [completedTours, skippedTours, tourKey]);
 
-  const getValidSteps = useCallback(() => {
+  // Filtrar steps com base em suas condições
+  const availableSteps = useMemo(() => {
     return steps.filter((step) => {
-      if (step.condition && !step.condition()) {
-        console.log(`Passo ${step.id} filtrado por condição`);
-        return false;
-      }
-
-      if (step.target === "body") {
-        return true;
-      }
-
-      const element = document.querySelector(step.target);
-      if (!element) {
-        console.log(
-          `Passo ${step.id} filtrado - elemento ${step.target} não encontrado`
-        );
-        return false;
-      }
-
-      return true;
+      if (!step.condition) return true;
+      return step.condition();
     });
   }, [steps]);
 
-  const nextStep = useCallback(() => {
-    setTourState((prev) => {
-      if (prev.currentStep < prev.steps.length - 1) {
-        const nextStepIndex = prev.currentStep + 1;
-        const nextStepData = prev.steps[nextStepIndex];
-        
-        console.log(
-          `➡️ Tour ${tourId}: Avançando para passo ${nextStepIndex + 1}/${
-            prev.steps.length
-          }`
-        );
-        
-        if (nextStepData?.action) {
-          setTimeout(() => {
-            nextStepData.action!();
-          }, 300);
-        }
-        
-        return { ...prev, currentStep: nextStepIndex };
-      } else {
-        console.log(`🎉 Tour ${tourId} finalizado`);
-        markTourCompleted();
-        return { ...prev, isActive: false };
+  const currentStepData = useMemo(() => {
+    return availableSteps[currentStep];
+  }, [availableSteps, currentStep]);
+
+  const totalSteps = availableSteps.length;
+
+  // Iniciar tour - agora aceita parâmetro para forçar início
+  const startTour = useCallback(
+    (force: boolean = false) => {
+      console.log(`Tentando iniciar tour ${tourKey}`, { force });
+
+      // Se force=true, sempre inicia
+      if (force) {
+        console.log(`Forçando início do tour ${tourKey}`);
+        setIsActive(true);
+        setCurrentStep(0);
+        setStartedThisSession((prev) => new Set(prev).add(tourKey));
+        return;
       }
-    });
-  }, [tourId, markTourCompleted]);
 
-  const startTour = useCallback(() => {
-    console.log(`🎯 Tentando iniciar tour ${tourId}`);
+      // Verificar se já foi iniciado nesta sessão (comportamento normal)
+      if (startedThisSession.has(tourKey)) {
+        console.log(`⏭️ Tour ${tourKey} já foi iniciado nesta sessão`);
+        return;
+      }
 
-    if (hasStartedRef.current || isCancelledRef.current) {
-      console.log(
-        `⏭️ Tour ${tourId} já foi iniciado ou cancelado nesta sessão`
-      );
-      return;
+      // Verificar se já foi completado ou pulado
+      if (completedTours.includes(tourKey) || skippedTours.includes(tourKey)) {
+        console.log(
+          `⏭️ Tour ${tourKey} já foi completado ou pulado anteriormente`
+        );
+        return;
+      }
+
+      console.log(`Iniciando tour ${tourKey}`);
+      setIsActive(true);
+      setCurrentStep(0);
+      setStartedThisSession((prev) => new Set(prev).add(tourKey));
+    },
+    [tourKey, startedThisSession, completedTours, skippedTours]
+  );
+
+  const nextStep = useCallback(() => {
+    if (currentStep < totalSteps - 1) {
+      setCurrentStep((prev) => prev + 1);
+    } else {
+      // Tour completo
+      const newCompleted = [...completedTours, tourKey];
+      setCompletedTours(newCompleted);
+      localStorage.setItem("completedTours", JSON.stringify(newCompleted));
+      setIsActive(false);
+      setCurrentStep(0);
     }
-
-    if (isTourCompleted()) {
-      console.log(`✅ Tour ${tourId} já foi completado`);
-      return;
-    }
-
-    const validSteps = getValidSteps();
-
-    if (validSteps.length === 0) {
-      console.log(`❌ Nenhum passo válido encontrado para tour ${tourId}`);
-      return;
-    }
-
-    console.log(`🚀 Iniciando tour ${tourId} com ${validSteps.length} passos`);
-
-    // Notificar contexto
-    tourContext.startTour(tourId);
-    
-    hasStartedRef.current = true;
-    setTourState({
-      isActive: true,
-      currentStep: 0,
-      steps: validSteps,
-    });
-  }, [tourId, isTourCompleted, getValidSteps, tourContext]);
+  }, [currentStep, totalSteps, tourKey, completedTours]);
 
   const prevStep = useCallback(() => {
-    setTourState((prev) => ({
-      ...prev,
-      currentStep: Math.max(0, prev.currentStep - 1),
-    }));
+    if (currentStep > 0) {
+      setCurrentStep((prev) => prev - 1);
+    }
+  }, [currentStep]);
+
+  const skipTour = useCallback(() => {
+    const newCompleted = [...completedTours, tourKey];
+    setCompletedTours(newCompleted);
+    localStorage.setItem("completedTours", JSON.stringify(newCompleted));
+    setIsActive(false);
+    setCurrentStep(0);
+  }, [tourKey, completedTours]);
+
+  const closeTour = useCallback(() => {
+    setIsActive(false);
+    setCurrentStep(0);
+  }, []);
+
+  const cancelTour = useCallback(() => {
+    setIsActive(false);
+    setCurrentStep(0);
   }, []);
 
   const skipAllTours = useCallback(() => {
-    console.log('⏭️ Pulando TODOS os tours');
-    try {
-      const allKnownTours = ['mainPage', 'calculadoraIPCA', 'seriesIPCA', 'consulta'];
-      const tourSteps: TourSteps = JSON.parse(
-        localStorage.getItem(TOUR_STORAGE_KEY) || "{}"
-      );
-      
-      allKnownTours.forEach(tour => {
-        tourSteps[tour] = true;
-        tourContext.completeTour(tour);
-      });
-      
-      localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify(tourSteps));
-      
-      isCancelledRef.current = true;
-      setTourState((prev) => ({ ...prev, isActive: false }));
-      
-      console.log('✅ Todos os tours foram marcados como completados');
-    } catch (error) {
-      console.error('Erro ao pular todos os tours:', error);
-    }
-  }, [tourContext]);
+    const allTourKeys = [
+      "mainPage",
+      "calculadoraIPCA",
+      "seriesIPCA",
+      "consulta_intro",
+      "consulta_formulario",
+      "consulta_carregamento",
+      "consulta_resultados",
+      "consulta_tabela",
+      "consulta_graficos",
+      "consulta_exportacao",
+      "consulta_correcao",
+      "helpPage",
+      "aboutPage",
+      "contactPage",
+    ];
 
-  const skipTour = useCallback(() => {
-    console.log(`⏭️ Tour ${tourId} pulado pelo usuário`);
-    markTourCompleted();
-    isCancelledRef.current = true;
-    setTourState((prev) => ({ ...prev, isActive: false }));
-  }, [tourId, markTourCompleted]);
-
-  const cancelTour = useCallback(() => {
-    console.log(`❌ Tour ${tourId} cancelado pelo usuário`);
-    isCancelledRef.current = true;
-    setTourState((prev) => ({ ...prev, isActive: false }));
-  }, [tourId]);
-
-  const closeTour = useCallback(() => {
-    console.log(`🔒 Tour ${tourId} fechado`);
-    setTourState((prev) => ({ ...prev, isActive: false }));
-  }, [tourId]);
+    setSkippedTours(allTourKeys);
+    localStorage.setItem("skippedTours", JSON.stringify(allTourKeys));
+    setIsActive(false);
+    setCurrentStep(0);
+  }, []);
 
   const restartTour = useCallback(() => {
-    try {
-      const tourSteps: TourSteps = JSON.parse(
-        localStorage.getItem(TOUR_STORAGE_KEY) || "{}"
-      );
-      delete tourSteps[tourId];
-      localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify(tourSteps));
-      
-      // Notificar contexto
-      tourContext.restartTour(tourId);
-      
-      console.log(`🔄 Tour ${tourId} resetado - iniciando novamente`);
+    const newCompleted = completedTours.filter((key) => key !== tourKey);
+    const newSkipped = skippedTours.filter((key) => key !== tourKey);
 
-      hasStartedRef.current = false;
-      isCancelledRef.current = false;
+    setCompletedTours(newCompleted);
+    setSkippedTours(newSkipped);
+    localStorage.setItem("completedTours", JSON.stringify(newCompleted));
+    localStorage.setItem("skippedTours", JSON.stringify(newSkipped));
 
-      setTimeout(() => {
-        startTour();
-      }, 100);
-    } catch (error) {
-      console.error("Erro ao resetar tour:", error);
-    }
-  }, [tourId, tourContext, startTour]);
+    // Remover da lista de iniciados nesta sessão
+    setStartedThisSession((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(tourKey);
+      return newSet;
+    });
+
+    // Iniciar o tour imediatamente
+    setTimeout(() => {
+      startTour(true);
+    }, 100);
+  }, [tourKey, completedTours, skippedTours, startTour]);
 
   const restartAllTours = useCallback(() => {
-    try {
-      localStorage.removeItem(TOUR_STORAGE_KEY);
-      
-      // Reiniciar todos os tours no contexto
-      const allKnownTours = ['mainPage', 'calculadoraIPCA', 'seriesIPCA', 'consulta'];
-      allKnownTours.forEach(tour => {
-        tourContext.restartTour(tour);
-      });
-      
-      console.log(`🔄 Todos os tours resetados`);
+    setCompletedTours([]);
+    setSkippedTours([]);
+    setStartedThisSession(new Set());
+    localStorage.removeItem("completedTours");
+    localStorage.removeItem("skippedTours");
 
-      hasStartedRef.current = false;
-      isCancelledRef.current = false;
+    // Iniciar tour de introdução se for consulta
+    setTimeout(() => {
+      if (tourKey.startsWith("consulta_")) {
+        startTour(true);
+      }
+    }, 100);
+  }, [tourKey, startTour]);
 
-      setTimeout(() => {
-        startTour();
-      }, 100);
-    } catch (error) {
-      console.error("Erro ao resetar todos os tours:", error);
-    }
-  }, [tourContext, startTour]);
+  // Nova função para alternar status do tour
+  const toggleTourStatus = useCallback(
+    (targetTourKey: string, shouldBeCompleted: boolean) => {
+      console.log(
+        `🔄 Alternando status do tour ${targetTourKey} para ${
+          shouldBeCompleted ? "completo" : "pendente"
+        }`
+      );
+
+      if (shouldBeCompleted) {
+        // Adicionar aos completados
+        const newCompleted = Array.from(
+          new Set([...completedTours, targetTourKey])
+        );
+        setCompletedTours(newCompleted);
+        localStorage.setItem("completedTours", JSON.stringify(newCompleted));
+
+        // Remover dos pulados se existir
+        const newSkipped = skippedTours.filter((key) => key !== targetTourKey);
+        setSkippedTours(newSkipped);
+        localStorage.setItem("skippedTours", JSON.stringify(newSkipped));
+      } else {
+        // Remover dos completados
+        const newCompleted = completedTours.filter(
+          (key) => key !== targetTourKey
+        );
+        setCompletedTours(newCompleted);
+        localStorage.setItem("completedTours", JSON.stringify(newCompleted));
+
+        // Remover dos pulados
+        const newSkipped = skippedTours.filter((key) => key !== targetTourKey);
+        setSkippedTours(newSkipped);
+        localStorage.setItem("skippedTours", JSON.stringify(newSkipped));
+
+        // Remover da lista de iniciados nesta sessão
+        setStartedThisSession((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(targetTourKey);
+          return newSet;
+        });
+      }
+    },
+    [completedTours, skippedTours]
+  );
+
+  const completedToursCount = completedTours.length;
 
   return {
-    tourState,
-    isActive: tourState.isActive,
-    currentStep: tourState.currentStep,
-    currentStepData: tourState.steps[tourState.currentStep],
-    totalSteps: tourState.steps.length,
-    isTourCompleted: isTourCompleted(),
-    isFirstTimeUser: isFirstTimeUser(),
-    completedToursCount: getCompletedToursCount(),
-    completedTours: getCompletedTours(),
+    isActive,
+    currentStep,
+    totalSteps,
+    currentStepData,
     startTour,
     nextStep,
     prevStep,
-    skipAllTours,
     skipTour,
-    cancelTour,
     closeTour,
+    cancelTour,
+    skipAllTours,
     restartTour,
     restartAllTours,
+    toggleTourStatus,
+    completedTours,
+    completedToursCount,
+    isFirstTimeUser,
+    isTourCompleted,
   };
 }

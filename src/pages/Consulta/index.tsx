@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Header } from "../../components/Header";
 import { Footer } from "../../components/Footer";
 import { BlueTitleCard } from "../../components/BlueTitleCard";
@@ -6,11 +6,12 @@ import { ConsultaForm } from "../../components/ConsultaForm";
 import { LoadingIndicator } from "../../components/LoadingIndicator";
 import { ResultsViewer } from "../../components/ResultsViewer";
 import { TourGuide } from "../../components/TourGuide";
-import { TourSectionMenu } from "../../components/TourSectionMenu";
 import { TourRestartButton } from "../../components/TourRestartButton";
 import { useConsultaPageTour } from "../../hooks/useConsultaPageTour";
+import { useConsultaResultadosTour } from "../../hooks/useConsultaResultadosTour";
+import { useConsultaGraficosTour } from "../../hooks/useConsultaGraficosTour";
 import { useTransparenciaData } from "../../hooks/useTransparenciaData";
-import type { DadosConsulta, FormData } from "../../types/consulta";
+import type { FormData } from "../../types/consulta";
 import Swal from "sweetalert2";
 import { ErrorPanel } from "../../components/ErrorPanel";
 import { motion, AnimatePresence } from "framer-motion";
@@ -26,20 +27,6 @@ const containerVariants = {
     },
   },
   exit: {
-    opacity: 0,
-    transition: { duration: 0.3 },
-  },
-};
-
-const itemVariants = {
-  hidden: { y: 20, opacity: 0 },
-  visible: {
-    y: 0,
-    opacity: 1,
-    transition: { duration: 0.5 },
-  },
-  exit: {
-    y: -20,
     opacity: 0,
     transition: { duration: 0.3 },
   },
@@ -61,7 +48,10 @@ export function ConsultaPage() {
     error,
   } = useTransparenciaData();
 
-  const tour = useConsultaPageTour();
+  // Tours independentes
+  const { tourIntro } = useConsultaPageTour();
+  const tourResultados = useConsultaResultadosTour();
+  const tourGraficos = useConsultaGraficosTour();
 
   // Estado para armazenar parâmetros da última consulta
   const [parametrosConsulta, setParametrosConsulta] = useState<{
@@ -72,10 +62,27 @@ export function ConsultaPage() {
   // Estado para controlar animações
   const [animationKey, setAnimationKey] = useState(0);
 
+  // Refs para rastrear tours já solicitados
+  const toursJaSolicitados = useRef({
+    resultados: false,
+    graficos: false,
+  });
+
   // Atualizar chave de animação quando os dados mudam
   useEffect(() => {
     setAnimationKey((prev) => prev + 1);
   }, [dadosConsulta.length]);
+
+  // Auto-iniciar tour de introdução na primeira visita
+  useEffect(() => {
+    if (!tourIntro.isTourCompleted && !tourIntro.isActive) {
+      const timer = setTimeout(() => {
+        tourIntro.startTour();
+      }, 800);
+
+      return () => clearTimeout(timer);
+    }
+  }, [tourIntro]);
 
   const handleSubmit = (formData: FormData) => {
     const params = {
@@ -85,16 +92,38 @@ export function ConsultaPage() {
       ipca_referencia: formData.ipcaReferencia,
     };
 
-    // Armazenar anos da consulta para verificação posterior
     setParametrosConsulta({
       anoInicial: parseInt(formData.anoInicial),
       anoFinal: parseInt(formData.anoFinal),
     });
 
+    // Resetar flag de tour de resultados para nova consulta
+    toursJaSolicitados.current.resultados = false;
+
     consultarDados(params);
   };
 
-  // Função para lidar com o cancelamento da consulta
+  // Handler para mudança de visualização para gráficos
+  const handleVisualizacaoChange = useCallback(
+    (tipo: "tabela" | "grafico") => {
+      if (
+        tipo === "grafico" &&
+        !tourGraficos.isTourCompleted &&
+        !toursJaSolicitados.current.graficos
+      ) {
+        console.log("📈 Mudou para gráficos, iniciando tour");
+        toursJaSolicitados.current.graficos = true;
+
+        setTimeout(() => {
+          tourGraficos.startTour(true);
+        }, 600);
+      }
+    },
+    [tourGraficos]
+  );
+
+  // Handler para abrir modal de correção
+
   const handleCancelarConsulta = () => {
     Swal.fire({
       title: "Cancelar consulta?",
@@ -117,6 +146,25 @@ export function ConsultaPage() {
       }
     });
   };
+
+
+  // Determinar qual tour está ativo
+  const activeTour = tourIntro.isActive
+    ? tourIntro
+    : tourResultados.isActive
+    ? tourResultados
+    : tourGraficos.isActive
+    ? tourGraficos
+    : null;
+
+  // Coletar todos os tours completados
+  const allCompletedTours = [
+    ...tourIntro.completedTours,
+    ...tourResultados.completedTours,
+    ...tourGraficos.completedTours,
+  ];
+
+  const uniqueCompletedTours = Array.from(new Set(allCompletedTours));
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -150,7 +198,7 @@ export function ConsultaPage() {
             <div className="flex-grow bg-gray-50 py-8">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Formulário de Consulta */}
-                <motion.div variants={itemVariants} className="mb-6">
+                <motion.div className="mb-6">
                   <div data-tour="consulta-form">
                     <ConsultaForm
                       onSubmit={handleSubmit}
@@ -162,7 +210,7 @@ export function ConsultaPage() {
                   </div>
                 </motion.div>
 
-                {/* Loading com indicador de progresso */}
+                {/* Loading */}
                 <AnimatePresence>
                   {isLoading && (
                     <motion.div
@@ -172,20 +220,18 @@ export function ConsultaPage() {
                       exit={{ opacity: 0, scale: 0.9 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <div data-tour="loading-indicator">
-                        <LoadingIndicator
-                          message={loadingMessage}
-                          progresso={progressoConsulta.percentual}
-                          registrosProcessados={
-                            progressoConsulta.registrosProcessados
-                          }
-                          totalRegistros={progressoConsulta.totalRegistros}
-                          anosProcessados={progressoConsulta.anosProcessados}
-                          anoInicial={progressoConsulta.anoInicial}
-                          anoFinal={progressoConsulta.anoFinal}
-                          onCancel={handleCancelarConsulta}
-                        />
-                      </div>
+                      <LoadingIndicator
+                        message={loadingMessage}
+                        progresso={progressoConsulta.percentual}
+                        registrosProcessados={
+                          progressoConsulta.registrosProcessados
+                        }
+                        totalRegistros={progressoConsulta.totalRegistros}
+                        anosProcessados={progressoConsulta.anosProcessados}
+                        anoInicial={progressoConsulta.anoInicial}
+                        anoFinal={progressoConsulta.anoFinal}
+                        onCancel={handleCancelarConsulta}
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -209,6 +255,7 @@ export function ConsultaPage() {
                         <ResultsViewer
                           dados={dadosConsulta}
                           parametrosConsulta={parametrosConsulta}
+                          onVisualizacaoChange={handleVisualizacaoChange}
                         />
                       </div>
                     </motion.div>
@@ -222,52 +269,61 @@ export function ConsultaPage() {
 
       <Footer />
 
-      {/* Tour Guide com navegação entre seções */}
-      <TourGuide
-        isActive={tour.isActive}
-        currentStep={tour.currentStep}
-        totalSteps={tour.totalSteps}
-        currentStepData={tour.currentStepData}
-        onNext={tour.nextStep}
-        onPrev={tour.prevStep}
-        onSkip={tour.skipTour}
-        onClose={tour.closeTour}
-        onCancel={tour.cancelTour}
-        onSkipAll={tour.skipAllTours}
-        extraButtons={
-          <button
-            onClick={() => tour.setShowSectionMenu(true)}
-            className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors text-sm flex items-center gap-1"
-            title="Navegar entre seções"
-          >
-            🗺️ Seções
-          </button>
-        }
-        sectionInfo={{
-          current: tour.tourSections.find(s => s.id === tour.currentSection)?.title || '',
-          total: tour.tourSections.length,
-          index: tour.tourSections.findIndex(s => s.id === tour.currentSection) + 1,
-        }}
-      />
-
-      {/* Menu de navegação entre seções */}
-      <TourSectionMenu
-        isOpen={tour.showSectionMenu}
-        onClose={() => tour.setShowSectionMenu(false)}
-        sections={tour.tourSections}
-        currentSection={tour.currentSection}
-        onSelectSection={tour.goToSection}
-        completedTours={tour.completedTours}
-      />
+      {/* Tour Guide */}
+      {activeTour && (
+        <TourGuide
+          isActive={activeTour.isActive}
+          currentStep={activeTour.currentStep}
+          totalSteps={activeTour.totalSteps}
+          currentStepData={activeTour.currentStepData}
+          onNext={activeTour.nextStep}
+          onPrev={activeTour.prevStep}
+          onSkip={activeTour.skipTour}
+          onClose={activeTour.closeTour}
+          onCancel={activeTour.cancelTour}
+          onSkipAll={activeTour.skipAllTours}
+        />
+      )}
 
       {/* Botão para reiniciar tour */}
       <TourRestartButton
-        onRestartTour={tour.restartTour}
-        onRestartAllTours={tour.restartAllTours}
-        tourKey={`consulta_${tour.currentSection}`}
-        completedTours={tour.completedTours}
-        completedToursCount={tour.completedToursCount}
-        isFirstTimeUser={tour.isFirstTimeUser}
+        onRestartTour={() => {
+          // Reiniciar o tour mais relevante baseado no contexto
+          if (dadosConsulta.length > 0) {
+            tourResultados.restartTour();
+          } else {
+            tourIntro.restartTour();
+          }
+        }}
+        onRestartAllTours={() => {
+          tourIntro.restartAllTours();
+          tourResultados.restartAllTours();
+          tourGraficos.restartAllTours();
+        }}
+        onToggleTour={(tourId, completed) => {
+          // Delegar para o tour apropriado
+          if (tourId === "consulta_intro") {
+            tourIntro.toggleTourStatus(tourId, completed);
+          } else if (tourId === "consulta_resultados") {
+            tourResultados.toggleTourStatus(tourId, completed);
+          } else if (tourId === "consulta_graficos") {
+            tourGraficos.toggleTourStatus(tourId, completed);
+          } 
+        }}
+        tourKey={
+          activeTour
+            ? activeTour === tourIntro
+              ? "consulta_intro"
+              : activeTour === tourResultados
+              ? "consulta_resultados"
+              : activeTour === tourGraficos
+              ? "consulta_graficos"
+              : "consulta_correcao"
+            : undefined
+        }
+        completedTours={uniqueCompletedTours}
+        completedToursCount={uniqueCompletedTours.length}
+        isFirstTimeUser={tourIntro.isFirstTimeUser}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { X, ChevronRight, ChevronLeft, SkipForward, Users } from "lucide-react";
+import { X, ChevronRight, ChevronLeft, Users } from "lucide-react";
 
 interface TourGuideProps {
   isActive: boolean;
@@ -78,206 +78,262 @@ export function TourGuide({
   }, []);
 
   const updatePosition = useCallback(async () => {
-    if (!currentStepData?.target) {
-      setElementNotFound(true);
-      setIsDialogReady(true);
-      return;
+  if (!currentStepData?.target) {
+    setElementNotFound(true);
+    setIsDialogReady(true);
+    return;
+  }
+
+  const stepChanged = previousStep !== currentStep;
+  if (stepChanged) {
+    setIsTransitioning(true);
+    setPreviousStep(currentStep);
+    setOverlayKey((prev) => prev + 1);
+  }
+
+  if (currentStepData.target === "body") {
+    setTargetElement(document.body);
+    setTargetRect(null);
+    setElementNotFound(false);
+
+    const isMobile = window.innerWidth < 768;
+    const dialogWidth = isMobile
+      ? Math.min(window.innerWidth - 32, 350)
+      : 400;
+    const dialogHeight = isMobile ? 320 : 380;
+
+    const centerTop = (window.innerHeight - dialogHeight) / 2;
+    const centerLeft = window.innerWidth / 2;
+
+    const minTop = 20;
+    const maxTop = window.innerHeight - dialogHeight - 20;
+    const finalTop = Math.max(minTop, Math.min(centerTop, maxTop));
+
+    setDialogPosition({
+      top: finalTop,
+      left: centerLeft,
+    });
+
+    setTimeout(
+      () => {
+        setIsDialogReady(true);
+        setIsTransitioning(false);
+      },
+      stepChanged ? 100 : 30
+    );
+    return;
+  }
+
+  const findElementWithRetry = async (
+    selectors: string[],
+    maxRetries = 3
+  ): Promise<HTMLElement | null> => {
+    for (let retry = 0; retry < maxRetries; retry++) {
+      for (const selector of selectors) {
+        const element = document.querySelector(selector) as HTMLElement;
+        if (element) return element;
+      }
+
+      if (retry < maxRetries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
+    return null;
+  };
+
+  const selectors = currentStepData.target.split(",").map((s) => s.trim());
+  const element = await findElementWithRetry(selectors);
+
+  if (element) {
+    setTargetElement(element);
+    setElementNotFound(false);
+
+    const rect = element.getBoundingClientRect();
+    setTargetRect(rect);
+
+    let placement = currentStepData.placement || "bottom";
+
+    const isMobile = window.innerWidth < 768;
+    const dialogWidth = isMobile
+      ? Math.min(window.innerWidth - 32, 350)
+      : 450;
+    const dialogHeight = isMobile ? 280 : 320;
+
+    const bottomNavHeight = isMobile && hasBottomNavigation() ? 80 : 0;
+    const availableHeight = window.innerHeight - bottomNavHeight;
+
+    // Margens de segurança
+    const topMargin = 16;
+    const bottomMargin = 16;
+    const sideMargin = 16;
+
+    let top = 0;
+    let left = 0;
+
+    const isFinalizationBtn = isFinalizationButton(currentStepData.target);
+
+    // Calcular posição inicial baseada no placement
+    switch (placement) {
+      case "top":
+        top = rect.top - dialogHeight - 30;
+        left = rect.left + rect.width / 2;
+
+        if (isFinalizationBtn) {
+          top = Math.max(topMargin, rect.top - dialogHeight - 50);
+        }
+        break;
+      case "bottom":
+        top = rect.bottom + 20;
+        left = rect.left + rect.width / 2;
+        if (isFinalizationBtn && isMobile) {
+          top = rect.top - dialogHeight - 20;
+          placement = "top";
+        }
+        break;
+      case "left":
+        top = rect.top + rect.height / 2 - dialogHeight / 2;
+        left = rect.left - dialogWidth - 20;
+        break;
+      case "right":
+        top = rect.top + rect.height / 2 - dialogHeight / 2;
+        left = rect.right + 20;
+        break;
     }
 
-    const stepChanged = previousStep !== currentStep;
-    if (stepChanged) {
-      setIsTransitioning(true);
-      setPreviousStep(currentStep);
-      setOverlayKey((prev) => prev + 1);
+    // ===== CORREÇÃO HORIZONTAL =====
+    // Garantir que não saia horizontalmente
+    if (left + dialogWidth / 2 > window.innerWidth - sideMargin) {
+      left = window.innerWidth - dialogWidth / 2 - sideMargin;
+    }
+    if (left - dialogWidth / 2 < sideMargin) {
+      left = dialogWidth / 2 + sideMargin;
     }
 
-    if (currentStepData.target === "body") {
-      setTargetElement(document.body);
-      setTargetRect(null);
-      setElementNotFound(false);
+    // ===== CORREÇÃO VERTICAL (MELHORADA) =====
+    // Área disponível considerando margens
+    const maxAllowedTop = availableHeight - dialogHeight - bottomMargin;
+    const minAllowedTop = topMargin;
 
-      const isMobile = window.innerWidth < 768;
-      const dialogWidth = isMobile
-        ? Math.min(window.innerWidth - 32, 350)
-        : 400;
-      const dialogHeight = isMobile ? 320 : 380;
-
-      const centerTop = (window.innerHeight - dialogHeight) / 2;
-      const centerLeft = window.innerWidth / 2;
-
-      const minTop = 20;
-      const maxTop = window.innerHeight - dialogHeight - 20;
-      const finalTop = Math.max(minTop, Math.min(centerTop, maxTop));
-
-      setDialogPosition({
-        top: finalTop,
-        left: centerLeft,
-      });
-
-      setTimeout(
-        () => {
-          setIsDialogReady(true);
-          setIsTransitioning(false);
-        },
-        stepChanged ? 100 : 30
-      );
-      return;
-    }
-
-    const findElementWithRetry = async (
-      selectors: string[],
-      maxRetries = 3
-    ): Promise<HTMLElement | null> => {
-      for (let retry = 0; retry < maxRetries; retry++) {
-        for (const selector of selectors) {
-          const element = document.querySelector(selector) as HTMLElement;
-          if (element) return element;
-        }
-
-        if (retry < maxRetries - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
-      }
-      return null;
-    };
-
-    const selectors = currentStepData.target.split(",").map((s) => s.trim());
-    const element = await findElementWithRetry(selectors);
-
-    if (element) {
-      setTargetElement(element);
-      setElementNotFound(false);
-
-      const rect = element.getBoundingClientRect();
-      setTargetRect(rect);
-
-      let placement = currentStepData.placement || "bottom";
-
-      const isMobile = window.innerWidth < 768;
-      const dialogWidth = isMobile
-        ? Math.min(window.innerWidth - 32, 350)
-        : 400;
-      const dialogHeight = isMobile ? 280 : 320;
-
-      const bottomNavHeight = isMobile && hasBottomNavigation() ? 80 : 0;
-      const availableHeight = window.innerHeight - bottomNavHeight;
-
-      let top = 0;
-      let left = 0;
-
-      const isFinalizationBtn = isFinalizationButton(currentStepData.target);
-
-      switch (placement) {
-        case "top":
-          top = rect.top - dialogHeight - 30;
-          left = rect.left + rect.width / 2;
-
-          if (isFinalizationBtn) {
-            top = Math.max(20, rect.top - dialogHeight - 50);
-          }
-          break;
-        case "bottom":
-          top = rect.bottom + 20;
-          left = rect.left + rect.width / 2;
-          if (isFinalizationBtn && isMobile) {
-            top = rect.top - dialogHeight - 20;
-            placement = "top";
-          }
-          break;
-        case "left":
-          top = rect.top + rect.height / 2 - dialogHeight / 2;
-          left = rect.left - dialogWidth - 20;
-          break;
-        case "right":
-          top = rect.top + rect.height / 2 - dialogHeight / 2;
-          left = rect.right + 20;
-          break;
-      }
-
-      const margin = 16;
-
-      if (left + dialogWidth / 2 > window.innerWidth - margin) {
-        left = window.innerWidth - dialogWidth / 2 - margin;
-      }
-      if (left - dialogWidth / 2 < margin) {
-        left = dialogWidth / 2 + margin;
-      }
-
-      if (placement === "top") {
-        if (top < margin) {
-          top = rect.bottom + 20;
-          if (top + dialogHeight > availableHeight - margin) {
-            top = (availableHeight - dialogHeight) / 2;
-          }
-        }
+    // Se o dialog vai ultrapassar o limite superior
+    if (top < minAllowedTop) {
+      console.log(`📏 Dialog muito acima (${top}px), ajustando para ${minAllowedTop}px`);
+      
+      // Tentar posicionar abaixo do elemento
+      const belowPosition = rect.bottom + 20;
+      
+      if (belowPosition + dialogHeight <= maxAllowedTop) {
+        // Cabe abaixo do elemento
+        top = belowPosition;
+        console.log(`✅ Posicionando abaixo do elemento em ${top}px`);
+      } else if (rect.top - dialogHeight - 30 >= minAllowedTop) {
+        // Cabe acima do elemento
+        top = rect.top - dialogHeight - 30;
+        console.log(`✅ Posicionando acima do elemento em ${top}px`);
       } else {
-        if (top + dialogHeight > availableHeight - margin) {
-          if (isFinalizationBtn) {
-            top = rect.top - dialogHeight - 20;
-          } else {
-            top = availableHeight - dialogHeight - margin;
-          }
-        }
-        if (top < margin) {
-          top = margin;
-        }
+        // Não cabe em nenhum lugar ideal, centralizar verticalmente
+        top = Math.max(minAllowedTop, (availableHeight - dialogHeight) / 2);
+        console.log(`⚠️ Centralizando verticalmente em ${top}px`);
       }
-
-      setDialogPosition({ top, left });
-
-      const elementTop = window.pageYOffset + rect.top;
-      let scrollTarget;
-
-      if (isFinalizationBtn) {
-        scrollTarget = elementTop - availableHeight / 2 + rect.height / 2;
-      } else if (placement === "top") {
-        scrollTarget = elementTop - dialogHeight - 100;
+    }
+    
+    // Se o dialog vai ultrapassar o limite inferior
+    if (top + dialogHeight > maxAllowedTop) {
+      console.log(`📏 Dialog muito abaixo (${top + dialogHeight}px > ${maxAllowedTop}px), ajustando`);
+      
+      // Tentar posicionar acima do elemento
+      const abovePosition = rect.top - dialogHeight - 30;
+      
+      if (abovePosition >= minAllowedTop) {
+        // Cabe acima do elemento
+        top = abovePosition;
+        console.log(`✅ Posicionando acima do elemento em ${top}px`);
+      } else if (rect.bottom + 20 + dialogHeight <= maxAllowedTop) {
+        // Cabe abaixo do elemento
+        top = rect.bottom + 20;
+        console.log(`✅ Posicionando abaixo do elemento em ${top}px`);
       } else {
-        scrollTarget = elementTop - availableHeight / 3;
+        // Não cabe em nenhum lugar ideal, ajustar para o limite máximo
+        top = maxAllowedTop;
+        console.log(`⚠️ Ajustando para limite máximo em ${top}px`);
       }
+    }
 
-      const currentScroll = window.pageYOffset;
-      const targetScroll = Math.max(0, scrollTarget);
-      const distance = Math.abs(targetScroll - currentScroll);
+    // Garantia final: forçar dentro dos limites
+    top = Math.max(minAllowedTop, Math.min(top, maxAllowedTop));
+    
+    console.log(`📍 Posição final do dialog: top=${top}px (min=${minAllowedTop}, max=${maxAllowedTop})`);
 
-      if (distance > 50) {
-        window.scrollTo({
-          top: targetScroll,
-          behavior: "smooth",
-        });
-      }
+    setDialogPosition({ top, left });
 
-      setTimeout(
-        () => {
-          setIsDialogReady(true);
-          setIsTransitioning(false);
-        },
-        stepChanged ? 200 : 80
-      );
+    // ===== SCROLL SUAVE =====
+    // Calcular scroll considerando a nova posição do dialog
+    const elementTop = window.pageYOffset + rect.top;
+    let scrollTarget;
+
+    // Verificar se o elemento está visível com o dialog posicionado
+    const dialogBottomInViewport = top + dialogHeight;
+    const elementBottomInViewport = rect.bottom;
+
+    if (isFinalizationBtn) {
+      scrollTarget = elementTop - availableHeight / 2 + rect.height / 2;
+    } else if (placement === "top" || top < rect.top) {
+      // Dialog acima do elemento - garantir que ambos estejam visíveis
+      scrollTarget = elementTop - dialogHeight - 100;
     } else {
-      console.warn(
-        "Elemento não encontrado para o tour:",
-        currentStepData.target
-      );
-      setElementNotFound(true);
-      setTargetElement(null);
-      setTargetRect(null);
-
-      setTimeout(
-        () => {
-          setIsDialogReady(true);
-          setIsTransitioning(false);
-        },
-        stepChanged ? 100 : 50
-      );
+      // Dialog abaixo do elemento
+      scrollTarget = elementTop - availableHeight / 3;
     }
-  }, [
-    currentStepData,
-    hasBottomNavigation,
-    isFinalizationButton,
-    currentStep,
-    previousStep,
-  ]);
+
+    // Verificar se precisa ajustar scroll para mostrar o dialog completo
+    if (dialogBottomInViewport > availableHeight) {
+      const adjustment = dialogBottomInViewport - availableHeight + 50;
+      scrollTarget += adjustment;
+      console.log(`📜 Ajustando scroll em +${adjustment}px para mostrar dialog completo`);
+    }
+
+    const currentScroll = window.pageYOffset;
+    const targetScroll = Math.max(0, scrollTarget);
+    const distance = Math.abs(targetScroll - currentScroll);
+
+    if (distance > 50) {
+      console.log(`📜 Fazendo scroll de ${currentScroll}px para ${targetScroll}px (distância: ${distance}px)`);
+      window.scrollTo({
+        top: targetScroll,
+        behavior: "smooth",
+      });
+    }
+
+    setTimeout(
+      () => {
+        setIsDialogReady(true);
+        setIsTransitioning(false);
+      },
+      stepChanged ? 200 : 80
+    );
+  } else {
+    console.warn(
+      "Elemento não encontrado para o tour:",
+      currentStepData.target
+    );
+    setElementNotFound(true);
+    setTargetElement(null);
+    setTargetRect(null);
+
+    setTimeout(
+      () => {
+        setIsDialogReady(true);
+        setIsTransitioning(false);
+      },
+      stepChanged ? 100 : 50
+    );
+  }
+}, [
+  currentStepData,
+  hasBottomNavigation,
+  isFinalizationButton,
+  currentStep,
+  previousStep,
+]);
 
   useEffect(() => {
     if (isActive && currentStepData) {
@@ -487,8 +543,8 @@ export function TourGuide({
                 : `translate(-50%, 0) ${
                     isTransitioning ? "scale(0.99)" : "scale(1)"
                   }`,
-              width: isMobile ? `calc(100vw - 32px)` : "400px",
-              maxWidth: isMobile ? "calc(100vw - 32px)" : "400px",
+              width: isMobile ? `calc(100vw - 32px)` : "450px",
+              maxWidth: isMobile ? "calc(100vw - 32px)" : "450px",
               maxHeight: isMobile
                 ? `calc(50vh - ${bottomNavHeight}px)`
                 : "70vh",

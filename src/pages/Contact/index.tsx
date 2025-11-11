@@ -159,6 +159,7 @@ export function ContactPage() {
         onRestartAllTours={tour.restartAllTours}
         tourKey="contactPage"
         completedTours={tour.completedTours}
+        onToggleTour={tour.toggleTourStatus}
         completedToursCount={tour.completedToursCount}
         isFirstTimeUser={tour.isFirstTimeUser}
       />

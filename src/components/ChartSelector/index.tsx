@@ -7,7 +7,7 @@ interface ChartSelectorProps {
 
 export function ChartSelector({ tipoGrafico, onChange }: ChartSelectorProps) {
   return (
-    <div className="flex gap-2 mb-4 justify-center">
+    <div className="flex gap-2 mb-4 justify-center" data-tour="chart-type-selector">
       <button
         onClick={() => onChange('barras')}
         className={`px-3 py-1 rounded text-sm ${
