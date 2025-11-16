@@ -14,7 +14,7 @@ interface CompactFilterPanelProps {
   onFilterChange: (id: string, field: 'type' | 'value', value: string) => void;
   availableYears: string[];
   availableOptions: Map<string, Array<{ value: string; label: string }>>;
-  variant?: 'full' | 'compact'; // full para tabela, compact para gráficos
+  variant?: 'full' | 'compact';
 }
 
 export const CompactFilterPanel = memo(({
@@ -53,18 +53,18 @@ export const CompactFilterPanel = memo(({
   // Versão compacta (para gráficos)
   if (variant === 'compact') {
     return (
-      <div className="relative">
+      <div className="relative w-full sm:w-auto">
         {/* Botão trigger compacto */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all ${
+          className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg border-2 transition-all w-full sm:w-auto justify-center ${
             activeFiltersCount > 0
               ? "bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100"
               : "bg-white border-gray-300 text-gray-700 hover:border-gray-400"
           }`}
         >
           <svg
-            className="w-5 h-5"
+            className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -76,16 +76,16 @@ export const CompactFilterPanel = memo(({
               d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
             />
           </svg>
-          <span className="font-medium text-sm">
+          <span className="font-medium text-xs sm:text-sm">
             Filtrar Dados
             {activeFiltersCount > 0 && (
-              <span className="ml-2 px-2 py-0.5 bg-purple-600 text-white text-xs rounded-full">
+              <span className="ml-2 px-1.5 sm:px-2 py-0.5 bg-purple-600 text-white text-xs rounded-full">
                 {activeFiltersCount}
               </span>
             )}
           </span>
           <motion.svg
-            className="w-4 h-4"
+            className="w-4 h-4 flex-shrink-0"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -109,7 +109,7 @@ export const CompactFilterPanel = memo(({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.2 }}
-              className="absolute top-full left-0 mt-2 w-[500px] bg-white border-2 border-gray-200 rounded-xl shadow-xl z-50 p-4"
+              className="absolute top-full left-0 right-0 sm:left-auto sm:right-auto mt-2 w-full sm:w-[500px] sm:max-w-[90vw] bg-white border-2 border-gray-200 rounded-xl shadow-xl z-50 p-3 sm:p-4 overflow-hidden"
             >
               <FilterContent
                 filters={filters}
@@ -129,7 +129,7 @@ export const CompactFilterPanel = memo(({
       </div>
     );
   }
-
+  
   // Versão full (para tabela) - Acordeão
   return (
     <div
@@ -200,6 +200,7 @@ export const CompactFilterPanel = memo(({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="overflow-hidden"
           >
             <div className="px-4 pb-4 border-t border-gray-200">
               <FilterContent
@@ -250,98 +251,156 @@ const FilterContent = memo(({
   onClose,
 }: FilterContentProps) => {
   return (
-    <>
+    <div className="w-full max-w-full overflow-hidden">
       {/* Botão Adicionar */}
       {canAddMore && (
         <button
           onClick={onAddFilter}
           className="w-full mt-3 flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          Adicionar Filtro
+          <span className="hidden sm:inline">Adicionar Filtro</span>
+          <span className="sm:hidden">Adicionar</span>
         </button>
       )}
 
       {/* Lista de Filtros */}
       {filters.length === 0 ? (
-        <div className="text-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-300 mt-3">
-          <svg className="w-10 h-10 text-gray-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="text-center py-4 sm:py-6 bg-gray-50 rounded-lg border border-dashed border-gray-300 mt-3">
+          <svg className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
           </svg>
-          <p className="text-gray-500 text-sm font-medium">Nenhum filtro aplicado</p>
-          <p className="text-gray-400 text-xs mt-1">Adicione filtros para refinar os dados</p>
+          <p className="text-gray-500 text-xs sm:text-sm font-medium">Nenhum filtro aplicado</p>
+          <p className="text-gray-400 text-xs mt-1 hidden sm:block">Adicione filtros para refinar os dados</p>
         </div>
       ) : (
-        <div className="space-y-2 mt-3">
-          {filters.map((filter, index) => {
-            const options = getOptionsForType(filter.type);
-            const usedTypes = filters.map(f => f.type);
-            const availableTypes = filterTypes.filter(
-              ft => ft.value === filter.type || !usedTypes.includes(ft.value)
-            );
+        <div className="space-y-2 sm:space-y-3 mt-3 w-full max-w-full">
+          <AnimatePresence>
+            {filters.map((filter, index) => {
+              const options = getOptionsForType(filter.type);
+              const usedTypes = filters.map(f => f.type);
+              const availableTypes = filterTypes.filter(
+                ft => ft.value === filter.type || !usedTypes.includes(ft.value)
+              );
 
-            return (
-              <motion.div
-                key={filter.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="flex items-center gap-2 p-3 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg"
-              >
-                {/* Badge de número */}
-                <div className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                  {index + 1}
-                </div>
-
-                {/* Select de Tipo */}
-                <select
-                  value={filter.type}
-                  onChange={(e) => {
-                    onFilterChange(filter.id, 'type', e.target.value);
-                    onFilterChange(filter.id, 'value', '');
-                  }}
-                  className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+              return (
+                <motion.div
+                  key={filter.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="w-full max-w-full overflow-hidden"
                 >
-                  {availableTypes.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
+                  {/* Layout Mobile (Stacked) */}
+                  <div className="sm:hidden w-full bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-2">
+                    {/* Linha 1: Badge + Tipo + Remover */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="flex-shrink-0 w-5 h-5 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                        {index + 1}
+                      </div>
+                      <select
+                        value={filter.type}
+                        onChange={(e) => {
+                          onFilterChange(filter.id, 'type', e.target.value);
+                          onFilterChange(filter.id, 'value', '');
+                        }}
+                        className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                      >
+                        {availableTypes.map((type) => (
+                          <option key={type.value} value={type.value}>
+                            {type.label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => onRemoveFilter(filter.id)}
+                        className="flex-shrink-0 p-1.5 text-red-600 hover:bg-red-100 rounded transition-colors"
+                        title="Remover filtro"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
 
-                {/* Igual */}
-                <span className="text-purple-600 font-bold">=</span>
+                    {/* Linha 2: Valor */}
+                    <div className="w-full">
+                      <select
+                        value={filter.value}
+                        onChange={(e) => onFilterChange(filter.id, 'value', e.target.value)}
+                        className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                        disabled={!filter.type}
+                      >
+                        <option value="">Selecione o valor...</option>
+                        {options.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
 
-                {/* Select de Valor */}
-                <select
-                  value={filter.value}
-                  onChange={(e) => onFilterChange(filter.id, 'value', e.target.value)}
-                  className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                  disabled={!filter.type}
-                >
-                  <option value="">Selecione...</option>
-                  {options.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                  {/* Layout Desktop (Horizontal) */}
+                  <div className="hidden sm:flex items-center gap-2 p-3 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg w-full max-w-full overflow-hidden">
+                    {/* Badge de número */}
+                    <div className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                      {index + 1}
+                    </div>
 
-                {/* Botão Remover */}
-                <button
-                  onClick={() => onRemoveFilter(filter.id)}
-                  className="flex-shrink-0 p-1.5 text-red-600 hover:bg-red-100 rounded transition-colors"
-                  title="Remover filtro"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </motion.div>
-            );
-          })}
+                    {/* Select de Tipo */}
+                    <select
+                      value={filter.type}
+                      onChange={(e) => {
+                        onFilterChange(filter.id, 'type', e.target.value);
+                        onFilterChange(filter.id, 'value', '');
+                      }}
+                      className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                      style={{ maxWidth: '200px' }}
+                    >
+                      {availableTypes.map((type) => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Igual */}
+                    <span className="text-purple-600 font-bold flex-shrink-0">=</span>
+
+                    {/* Select de Valor */}
+                    <select
+                      value={filter.value}
+                      onChange={(e) => onFilterChange(filter.id, 'value', e.target.value)}
+                      className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                      disabled={!filter.type}
+                      style={{ maxWidth: '250px' }}
+                    >
+                      <option value="">Selecione...</option>
+                      {options.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Botão Remover */}
+                    <button
+                      onClick={() => onRemoveFilter(filter.id)}
+                      className="flex-shrink-0 p-1.5 text-red-600 hover:bg-red-100 rounded transition-colors"
+                      title="Remover filtro"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       )}
 
@@ -350,10 +409,10 @@ const FilterContent = memo(({
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-lg"
+          className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-lg w-full max-w-full overflow-hidden"
         >
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="flex flex-wrap gap-1.5 max-w-full">
               {filters
                 .filter(f => f.value)
                 .map((filter) => (
@@ -363,7 +422,7 @@ const FilterContent = memo(({
                   >
                     <span className="font-semibold">{getFilterLabel(filter.type)}</span>
                     <span className="text-purple-400">·</span>
-                    <span className="max-w-[100px] truncate">{filter.value}</span>
+                    <span className="max-w-[80px] sm:max-w-[100px] truncate">{filter.value}</span>
                   </span>
                 ))}
             </div>
@@ -390,7 +449,7 @@ const FilterContent = memo(({
           Aplicar Filtros
         </button>
       )}
-    </>
+    </div>
   );
 });
 

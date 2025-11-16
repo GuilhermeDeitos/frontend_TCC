@@ -4,249 +4,370 @@ import { Header } from "../../components/Header";
 import { TourGuide } from "../../components/TourGuide";
 import { TourRestartButton } from "../../components/TourRestartButton";
 import { useHelpPageTour } from "../../hooks/useHelpPageTour";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { faqData, faqCategories, getCategoryIcon } from "../../utils/faqData";
+import { motion, AnimatePresence } from "framer-motion";
 
-interface FAQItem {
-  question: string;
-  answer: string;
-  category: string;
-}
-
-export function HelpPage(){
+export function HelpPage() {
   const [openItem, setOpenItem] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const tour = useHelpPageTour();
 
-  const faqData: FAQItem[] = [
-    // Questões Gerais
-    {
-      category: "Questões Gerais",
-      question: "O que é o SAD-UEPR?",
-      answer: "O SAD-UEPR (Sistema de Apoio à Decisão das Universidades Estaduais do Paraná) é um portal acadêmico, desenvolvido como Trabalho de Conclusão de Curso em Ciência da Computação na UNIOESTE. Sua finalidade é ser uma ferramenta para visualização e análise de dados sobre o financiamento das universidades estaduais do Paraná, visando apoiar decisões estratégicas."
-    },
-    {
-      category: "Questões Gerais",
-      question: "Qual período os dados cobrem?",
-      answer: "O escopo do projeto abrange a coleta e análise de dados financeiros e acadêmicos das universidades estaduais do Paraná no período de 2002 a 2023."
-    },
-    {
-      category: "Questões Gerais",
-      question: "De onde vêm os dados? As fontes são confiáveis?",
-      answer: "Sim, todas as informações são extraídas de fontes de dados públicas e oficiais para garantir a confiabilidade. As principais fontes são: Portal da Transparência do Paraná (dados financeiros), Instituto de Pesquisa Econômica Aplicada - IPEA (índices de inflação/IPCA) e Instituto Nacional de Estudos e Pesquisas Educacionais Anísio Teixeira - INEP (dados de matrículas)."
-    },
-    
-    // Entendendo os Dados
-    {
-      category: "Entendendo os Dados",
-      question: "O que é a correção pelo IPCA e por que ela é importante?",
-      answer: "O IPCA (Índice Nacional de Preços ao Consumidor Amplo) é o índice oficial que mede a inflação no Brasil. A correção monetária é o processo de atualizar um valor do passado para o presente, considerando a perda do poder de compra causada pela inflação. Essa correção é fundamental porque mil reais em 2015 não compram as mesmas coisas que mil reais em 2023. O SAD-UEPR aplica essa correção automaticamente para permitir comparações financeiras justas e precisas entre diferentes anos."
-    },
-    {
-      category: "Entendendo os Dados",
-      question: "O que significam os termos 'Empenhado', 'Liquidado' e 'Pago'?",
-      answer: "Esses termos fazem parte da execução de despesas no setor público: Empenhado - É o primeiro estágio, onde o governo reserva uma parte do orçamento para um gasto específico, criando um compromisso de pagamento. Liquidado - Ocorre após a verificação de que o produto foi entregue ou o serviço foi prestado conforme o contrato. É o reconhecimento da dívida. Pago - É a etapa final, quando o governo efetivamente transfere o dinheiro ao fornecedor, quitando a obrigação."
-    },
-    {
-      category: "Entendendo os Dados",
-      question: "Quais são as universidades estaduais do Paraná cobertas pelo sistema?",
-      answer: "O SAD-UEPR cobre as sete Universidades Estaduais de Ensino Superior (IEES) do Paraná: UEL (Universidade Estadual de Londrina), UEM (Universidade Estadual de Maringá), UEPG (Universidade Estadual de Ponta Grossa), UNIOESTE (Universidade Estadual do Oeste do Paraná), UNICENTRO (Universidade Estadual do Centro-Oeste), UENP (Universidade Estadual do Norte do Paraná) e UNESPAR (Universidade Estadual do Paraná)."
-    },
-    {
-      category: "Entendendo os Dados",
-      question: "O que significam os diferentes campos financeiros nos resultados?",
-      answer: "Os resultados exibem diversos campos financeiros: 'Orçamento LOA' é o valor inicial alocado pela Lei Orçamentária Anual; 'Total Orçamentário' representa os recursos disponíveis após ajustes; 'Disponibilidade Orçamentária' é o que resta para uso; 'Empenhado', 'Liquidado' e 'Pago' são as etapas de execução do gasto. Campos com 'Até Mês' mostram valores acumulados até o período consultado, enquanto 'No Mês' exibe apenas o valor do mês específico. Todos os valores são atualizados monetariamente para permitir comparações justas."
-    },
-    {
-      category: "Entendendo os Dados",
-      question: "Por que os fatores de correção são diferentes para cada ano?",
-      answer: "O fator de correção monetária varia por ano porque representa o acúmulo da inflação entre o período original e o período de referência. Por exemplo, valores de 2010 precisam de um fator maior de correção que valores de 2020, pois houve mais inflação acumulada nesse período mais longo. Para cada ano consultado, o sistema aplica automaticamente o fator específico correspondente. Você pode visualizar os detalhes desses fatores clicando no botão 'Detalhes da Correção' que aparece nos resultados da consulta."
-    },
+  // Filtrar FAQ por busca e categoria
+  const filteredFaq = useMemo(() => {
+    return faqData.filter((item) => {
+      const matchesSearch =
+        searchQuery === "" ||
+        item.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.answer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.tags?.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    // Como Usar o Portal
-    {
-      category: "Como Usar o Portal",
-      question: "Como funciona a consulta de dados?",
-      answer: "Você seleciona um período de interesse (data de início e fim). Para consultas que abrangem um único ano, o resultado é geralmente imediato. Para consultas de múltiplos anos, o sistema inicia um processo de coleta em segundo plano, e você poderá ver os resultados aparecendo progressivamente na tela à medida que os dados de cada ano são processados."
-    },
-    {
-      category: "Como Usar o Portal",
-      question: "Por que minha consulta de vários anos demora?",
-      answer: "A coleta de dados de portais públicos é uma tarefa complexa. O SAD-UEPR utiliza uma técnica chamada Web Scraping, que automatiza um navegador para simular a navegação humana, preencher formulários e baixar os dados necessários. Para períodos longos, esse processo precisa ser repetido diversas vezes. Embora o sistema use paralelismo para acelerar a execução, uma consulta extensa pode levar alguns minutos para ser concluída."
-    },
-    {
-      category: "Como Usar o Portal",
-      question: "Como usar a calculadora de correção monetária?",
-      answer: "Na calculadora de IPCA, insira o valor original, a data inicial (quando o valor foi estabelecido) e a data final (para quando deseja corrigir o valor). O sistema automaticamente calculará o valor corrigido pela inflação oficial medida pelo IPCA, mostrando também o percentual de correção acumulado no período."
-    },
-    {
-      category: "Como Usar o Portal",
-      question: "Como alternar entre diferentes visualizações dos resultados?",
-      answer: "Após realizar uma consulta, você verá duas opções principais na parte superior dos resultados: 'Tabela' e 'Gráfico'. Na visualização em tabela, você pode ordenar clicando nos cabeçalhos das colunas e filtrar usando os controles acima da tabela. Na visualização em gráfico, você tem opções adicionais de customização: escolha o tipo de comparação (entre universidades, entre anos ou evolução anual), selecione qual campo financeiro deseja comparar e escolha o tipo de gráfico (barras, linhas, pizza ou área) que melhor representa sua análise."
-    },
-    {
-      category: "Como Usar o Portal",
-      question: "Como filtrar e exportar os dados da consulta?",
-      answer: "Na visualização em tabela, você pode filtrar os dados por vários critérios: ano, universidade, função, grupo de natureza e origem de recursos. Isso ajuda a focar em informações específicas. Para exportar os resultados, use o botão 'Exportar' no canto superior direito da tela. Você pode escolher entre formatos como Excel, PDF, CSV ou JSON, selecionar quais colunas incluir e personalizar o título e subtítulo do relatório. Os arquivos exportados incluem automaticamente informações sobre a correção monetária aplicada."
-    },
-    {
-      category: "Como Usar o Portal",
-      question: "O que fazer quando alguns anos estão ausentes nos resultados?",
-      answer: "Se você receber um aviso sobre 'Anos ausentes' nos resultados, significa que o sistema não encontrou dados para determinados anos dentro do período solicitado. Isso pode ocorrer por indisponibilidade temporária dos dados no Portal da Transparência ou por mudanças na estrutura das informações. Recomendamos: 1) Refazer a consulta para verificar se foi um problema temporário; 2) Tentar consultar os anos problemáticos individualmente; 3) Verificar no Portal da Transparência do Paraná se os dados daquele período estão disponíveis. Mesmo com alguns anos ausentes, você ainda pode analisar os dados disponíveis."
-    },
-    {
-      category: "Como Usar o Portal",
-      question: "Como interpretar as diferentes opções de comparação nos gráficos?",
-      answer: "O sistema oferece três tipos principais de comparação gráfica: 1) 'Entre Universidades' - compara o desempenho das diferentes instituições para o mesmo indicador financeiro; 2) 'Entre Anos' - mostra a evolução temporal de um indicador, consolidando dados de todas as universidades por ano; 3) 'Evolução Anual' - apresenta dados detalhados por universidade e por ano, permitindo análise de tendências individuais. Essa última opção também permite filtrar por anos específicos para análises mais focadas. Cada tipo de visualização é adequado para responder diferentes perguntas analíticas."
-    },
+      const matchesCategory = !selectedCategory || item.category === selectedCategory;
 
-    // Para Desenvolvedores e Pesquisadores
-    {
-      category: "Para Desenvolvedores e Pesquisadores",
-      question: "Existe uma API para acessar os dados diretamente?",
-      answer: "Sim. Um dos objetivos do projeto foi construir uma API REST para disponibilizar de forma segura e estruturada todos os dados já tratados e corrigidos. Isso permite que outros sistemas, pesquisadores e desenvolvedores possam consumir essas informações de forma programática. A documentação completa da API está disponível no link 'Documentação da API' no rodapé do site."
-    },
-    {
-      category: "Para Desenvolvedores e Pesquisadores",
-      question: "Quais tecnologias foram utilizadas no projeto?",
-      answer: "O sistema foi desenvolvido com um conjunto de tecnologias modernas. O backend (API) foi construído em Python com o framework FastAPI. A extração de dados (crawler) utiliza Selenium, e a manipulação dos dados é feita com Pandas. A interface do portal (frontend) foi desenvolvida com TypeScript, React e Tailwind CSS."
-    },
-    {
-      category: "Para Desenvolvedores e Pesquisadores",
-      question: "O código-fonte está disponível?",
-      answer: "Sim, o projeto segue os princípios de transparência e código aberto. O código-fonte completo está disponível no GitHub, incluindo tanto o sistema de extração de dados quanto a interface web. Você pode encontrar o link no rodapé do site."
-    },
-    {
-      category: "Para Desenvolvedores e Pesquisadores",
-      question: "Quais métricas e indicadores são recomendados para análise comparativa?",
-      answer: "Para análises comparativas entre universidades de diferentes portes, recomendamos considerar métricas relativas como 'investimento por aluno' ou 'percentual do orçamento destinado a diferentes funções'. Especificamente, o valor 'Pago' tende a ser mais preciso para análises orçamentárias definitivas, enquanto o 'Empenhado' é útil para entender o planejamento. Para séries temporais longas (mais de 5 anos), sempre use os valores corrigidos pelo IPCA para neutralizar o efeito da inflação. Os pesquisadores também podem baixar os dados em formato JSON ou CSV para realizar análises estatísticas mais avançadas em ferramentas como R, Python ou SPSS."
-    },
-    {
-      category: "Para Desenvolvedores e Pesquisadores",
-      question: "Posso incorporar os gráficos e visualizações em outros sites ou publicações?",
-      answer: "Sim, você pode capturar as visualizações via screenshot para uso em publicações, citando o SAD-UEPR como fonte. Para integração web mais avançada, você pode utilizar nossa API para obter os dados e construir suas próprias visualizações personalizadas. Ao citar dados do sistema em trabalhos acadêmicos, recomendamos incluir a data da consulta e os parâmetros utilizados, especialmente o período de referência da correção monetária, para garantir a reprodutibilidade da análise. Todos os dados são de domínio público, mas pedimos a gentileza de atribuir a fonte original (Portal da Transparência do Paraná) e o processamento (SAD-UEPR)."
-    }
-  ];
-
-  const categories = [...new Set(faqData.map(item => item.category))];
+      return matchesSearch && matchesCategory;
+    });
+  }, [searchQuery, selectedCategory]);
 
   const toggleItem = (index: number) => {
     setOpenItem(openItem === index ? null : index);
   };
 
+  const clearFilters = () => {
+    setSearchQuery("");
+    setSelectedCategory(null);
+    setOpenItem(null);
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
+      
       <div data-tour="title-section">
         <BlueTitleCard
           title="Central de Ajuda"
-          subtitle="Encontre aqui respostas para as dúvidas mais comuns sobre o portal, os dados e as funcionalidades oferecidas."
+          subtitle="Encontre respostas para suas dúvidas sobre o portal, funcionalidades e dados"
         />
       </div>
 
-      <div className="flex-grow bg-gray-50 py-12 sm:py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="flex-grow bg-gradient-to-b from-gray-50 to-white py-8 sm:py-12">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          <div 
-            className="bg-white rounded-lg shadow-md p-6 mb-8"
-            data-tour="quick-navigation"
-          >
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Navegação Rápida</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {categories.map((category, index) => (
-                <a
-                  key={index}
-                  href={`#${category.replace(/\s+/g, '-').toLowerCase()}`}
-                  className="block p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-center"
-                >
-                  <span className="text-blue-700 font-medium">{category}</span>
-                </a>
-              ))}
+          {/* Barra de busca */}
+          <div className="mb-8" data-tour="search-bar">
+            <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-blue-100">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <svg
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Buscar em perguntas, respostas e tags..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                
+                {(searchQuery || selectedCategory) && (
+                  <button
+                    onClick={clearFilters}
+                    className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Limpar Filtros
+                  </button>
+                )}
+              </div>
+
+              {(searchQuery || selectedCategory) && (
+                <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
+                  <span className="font-medium">{filteredFaq.length} resultados encontrados</span>
+                  {selectedCategory && (
+                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                      {selectedCategory}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* FAQ por categorias */}
-          {categories.map((category, categoryIndex) => (
-            <div 
-              key={categoryIndex} 
-              className="mb-8"
-              data-tour={
-                category === "Questões Gerais" ? "category-general" :
-                category === "Entendendo os Dados" ? "category-data" :
-                category === "Como Usar o Portal" ? "category-usage" :
-                "category-developers"
-              }
-            >
-              <h2 
-                id={category.replace(/\s+/g, '-').toLowerCase()}
-                className="text-2xl font-bold text-gray-900 mb-6 border-b-2 border-blue-600 pb-2"
-              >
-                {category}
-              </h2>
-              
-              <div className="space-y-4">
-                {faqData
-                  .filter(item => item.category === category)
-                  .map((item, itemIndex) => {
-                    const globalIndex = faqData.indexOf(item);
-                    const isFirstItem = categoryIndex === 0 && itemIndex === 0;
-                    
-                    return (
-                      <div 
-                        key={itemIndex} 
-                        className="bg-white rounded-lg shadow-md"
-                        data-tour={isFirstItem ? "faq-item" : undefined}
-                      >
-                        <button
-                          onClick={() => toggleItem(globalIndex)}
-                          className="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <span className="font-medium text-gray-900 pr-4">{item.question}</span>
-                          <svg
-                            className={`w-5 h-5 text-gray-500 transform transition-transform ${
-                              openItem === globalIndex ? 'rotate-180' : ''
-                            }`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                        
-                        {openItem === globalIndex && (
-                          <div className="px-6 pb-4">
-                            <div className="text-gray-700 leading-relaxed border-t pt-4">
-                              {item.answer}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          ))}
+          {/* Navegação por categorias */}
+          <div className="mb-8" data-tour="quick-navigation">
+            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              Categorias
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {faqCategories.map((category) => {
+                const count = faqData.filter((item) => item.category === category).length;
+                const isSelected = selectedCategory === category;
 
-          <div 
-            className="bg-blue-600 text-white rounded-lg p-8 text-center"
+                return (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedCategory(isSelected ? null : category)}
+                    className={`
+                      p-4 rounded-xl transition-all duration-200 text-left
+                      ${
+                        isSelected
+                          ? "bg-blue-600 text-white shadow-lg scale-105"
+                          : "bg-white hover:bg-blue-50 border-2 border-gray-200 hover:border-blue-300"
+                      }
+                    `}
+                  >
+                    <div className="flex items-start gap-3">
+                      <svg
+                        className={`w-6 h-6 flex-shrink-0 ${isSelected ? "text-white" : "text-blue-600"}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d={getCategoryIcon(category)}
+                        />
+                      </svg>
+                      <div className="flex-1 min-w-0">
+                        <h3 className={`font-semibold text-sm mb-1 ${isSelected ? "text-white" : "text-gray-900"}`}>
+                          {category}
+                        </h3>
+                        <p className={`text-xs ${isSelected ? "text-blue-100" : "text-gray-500"}`}>
+                          {count} {count === 1 ? "pergunta" : "perguntas"}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Lista de FAQ */}
+          <AnimatePresence mode="wait">
+            {filteredFaq.length > 0 ? (
+              <motion.div
+                key="faq-list"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-6"
+              >
+                {faqCategories.map((category) => {
+                  const categoryItems = filteredFaq.filter((item) => item.category === category);
+                  if (categoryItems.length === 0) return null;
+
+                  return (
+                    <div key={category} className="space-y-3">
+                      <h2
+                        id={category.replace(/\s+/g, "-").toLowerCase()}
+                        className="text-2xl font-bold text-gray-900 flex items-center gap-3 pb-3 border-b-2 border-blue-600"
+                      >
+                        <svg
+                          className="w-7 h-7 text-blue-600"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d={getCategoryIcon(category)}
+                          />
+                        </svg>
+                        {category}
+                      </h2>
+
+                      {categoryItems.map((item) => {
+                        const globalIndex = faqData.indexOf(item);
+                        const isOpen = openItem === globalIndex;
+
+                        return (
+                          <motion.div
+                            key={globalIndex}
+                            layout
+                            className="bg-white rounded-xl shadow-md border-2 border-gray-200 overflow-hidden hover:shadow-lg transition-shadow"
+                            data-tour={globalIndex === 0 ? "faq-item" : undefined}
+                          >
+                            <button
+                              onClick={() => toggleItem(globalIndex)}
+                              className="w-full px-5 py-4 text-left flex justify-between items-start hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex-1 pr-4">
+                                <h3 className="font-semibold text-gray-900 text-base mb-1">
+                                  {item.question}
+                                </h3>
+                                {item.tags && item.tags.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5 mt-2">
+                                    {item.tags.slice(0, 3).map((tag, idx) => (
+                                      <span
+                                        key={idx}
+                                        className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-full font-medium"
+                                      >
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <motion.svg
+                                animate={{ rotate: isOpen ? 180 : 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="w-5 h-5 text-gray-500 flex-shrink-0 mt-1"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 9l-7 7-7-7"
+                                />
+                              </motion.svg>
+                            </button>
+
+                            <AnimatePresence>
+                              {isOpen && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: "auto", opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{ duration: 0.3 }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="px-5 pb-4 border-t border-gray-200 pt-4">
+                                    <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                                      {item.answer}
+                                    </p>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="no-results"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="text-center py-16"
+              >
+                <svg
+                  className="w-24 h-24 mx-auto text-gray-300 mb-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Nenhum resultado encontrado</h3>
+                <p className="text-gray-600 mb-4">
+                  Tente ajustar sua busca ou explorar as categorias disponíveis
+                </p>
+                <button
+                  onClick={clearFilters}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Limpar Filtros
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* CTA de contato */}
+          <div
+            className="mt-12 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl p-8 shadow-xl"
             data-tour="contact-section"
           >
-            <h2 className="text-2xl font-bold mb-4">Não encontrou sua resposta?</h2>
-            <p className="mb-6 text-blue-100">
-              Nossa equipe está pronta para ajudar! Entre em contato conosco e responderemos sua dúvida o mais rápido possível.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <a
-                href="/contato"
-                className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+            <div className="max-w-3xl mx-auto text-center">
+              <svg
+                className="w-16 h-16 mx-auto mb-4 text-blue-200"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
               >
-                Formulário de Contato
-              </a>
-              <a
-                href="mailto:guilherme.cascavel@gmail.com"
-                className="bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-800 transition-colors"
-              >
-                Email Direto
-              </a>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <h2 className="text-3xl font-bold mb-3">Não encontrou sua resposta?</h2>
+              <p className="text-blue-100 text-lg mb-6">
+                Nossa equipe está pronta para ajudar! Entre em contato e responderemos sua dúvida o mais rápido possível.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <a
+                  href="/contato"
+                  className="px-8 py-3 bg-white text-blue-600 rounded-xl font-semibold hover:bg-gray-100 transition-all transform hover:scale-105 shadow-lg flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                    />
+                  </svg>
+                  Formulário de Contato
+                </a>
+                <a
+                  href="mailto:guilherme.cascavel@gmail.com"
+                  className="px-8 py-3 bg-blue-800 text-white rounded-xl font-semibold hover:bg-blue-900 transition-all transform hover:scale-105 shadow-lg flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
+                    />
+                  </svg>
+                  Email Direto
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -254,7 +375,6 @@ export function HelpPage(){
 
       <Footer />
 
-      {/* Tour Guide */}
       <TourGuide
         isActive={tour.isActive}
         currentStep={tour.currentStep}
@@ -268,7 +388,6 @@ export function HelpPage(){
         onSkipAll={tour.skipAllTours}
       />
 
-      {/* Botão para reiniciar tour */}
       <TourRestartButton
         onRestartTour={tour.restartTour}
         onRestartAllTours={tour.restartAllTours}

@@ -243,6 +243,8 @@ export const ResultsViewer = memo(function ResultsViewer({
     [handleVisualizacaoChange]
   );
 
+  const isEvolutionMode = tipoComparacao === "evolucao_anual";
+
   return (
     <div
       className="bg-white rounded-lg shadow-lg p-6"
@@ -401,6 +403,7 @@ export const ResultsViewer = memo(function ResultsViewer({
                 <ChartSelector
                   tipoGrafico={tipoGrafico}
                   onTipoGraficoChange={setTipoGrafico}
+                  isEvolutionMode={isEvolutionMode}
                 />{" "}
               </div>
 

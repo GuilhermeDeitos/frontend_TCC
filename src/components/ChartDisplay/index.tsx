@@ -1,6 +1,6 @@
 import { memo, lazy, Suspense, useMemo, startTransition, useState } from "react";
 import type { DadoGrafico, TipoGrafico } from "../../types/consulta";
-import type { ChartContextType } from "../../types/chart";
+import type { ChartContextType, PaletteKey } from "../../types/chart";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Imports estáticos
@@ -172,7 +172,7 @@ export const ChartDisplay = memo(function ChartDisplay({
       <div data-tour="chart-controls-toggle">
         <button
           onClick={() => setIsControlsExpanded(!isControlsExpanded)}
-          className="w-full flex items-center justify-between px-4 py-3 bg-purple-600 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 group"
+          className="w-full flex items-center justify-between px-4 py-3 bg-purple-600 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 group cursor-pointer"
         >
           <span className="flex items-center gap-2 font-medium">
             <svg 
@@ -197,17 +197,17 @@ export const ChartDisplay = memo(function ChartDisplay({
               <div className="flex items-center gap-2 text-xs">
                 {controls.selectedPalette !== "default" && (
                   <span className="px-2 py-1 bg-white/20 rounded-md">
-                    🎨 {controls.selectedPalette}
+                    {controls.selectedPalette}
                   </span>
                 )}
                 {controls.sortOrder !== "original" && (
                   <span className="px-2 py-1 bg-white/20 rounded-md">
-                    ↕️ {controls.sortOrder}
+                  {controls.sortOrder}
                   </span>
                 )}
                 {controls.showAverage && (
                   <span className="px-2 py-1 bg-white/20 rounded-md">
-                    📊 média
+                    média
                   </span>
                 )}
               </div>
@@ -257,6 +257,115 @@ export const ChartDisplay = memo(function ChartDisplay({
         )}
       </AnimatePresence>
 
+      {/* Seletor de Universidades (sempre visível na evolução) */}
+      {isEvolutionChart && availableUniversidades.length > 0 && (
+        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <svg
+                className="w-5 h-5 text-purple-600 flex-shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                />
+              </svg>
+              <h3 className="text-sm font-semibold text-gray-900">
+                Selecionar Universidades para Evolução
+              </h3>
+              <span className="text-xs text-gray-600 bg-white px-2 py-0.5 rounded-full">
+                {selectedUniversidades.length === 0
+                  ? 'Todas'
+                  : `${selectedUniversidades.length} selecionada${selectedUniversidades.length > 1 ? 's' : ''}`
+                }
+              </span>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleSelectAll}
+                disabled={selectedUniversidades.length === availableUniversidades.length}
+                className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                  selectedUniversidades.length === availableUniversidades.length
+                    ? "bg-purple-600 text-white cursor-default"
+                    : "bg-white text-purple-600 hover:bg-purple-100 border border-purple-300 "
+                }`}
+              >
+                Todas
+              </button>
+              <button
+                onClick={handleDeselectAll}
+                disabled={selectedUniversidades.length === 0}
+                className="px-3 py-1 text-xs font-medium rounded-lg transition-colors bg-white text-gray-600 hover:bg-gray-100 border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Nenhuma
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
+            {availableUniversidades.map((universidade) => {
+              const isSelected = selectedUniversidades.length === 0 || selectedUniversidades.includes(universidade);
+
+              return (
+                <button
+                  key={universidade}
+                  onClick={() => handleUniversidadeToggle(universidade)}
+                  className={`relative px-3 py-2 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                    isSelected
+                      ? "bg-purple-600 text-white shadow-md"
+                      : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
+                  }`}
+                >
+                  <span className="block truncate">{universidade}</span>
+                  {isSelected && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center"
+                    >
+                      <svg
+                        className="w-3 h-3 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    </motion.div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {selectedUniversidades.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-3 p-3 bg-white border border-purple-200 rounded-lg"
+            >
+              <p className="text-xs text-gray-600">
+                <strong className="text-purple-700">
+                  {selectedUniversidades.length}
+                </strong>{" "}
+                universidade(s) selecionada(s) para visualizar a evolução temporal
+              </p>
+            </motion.div>
+          )}
+        </div>
+      )}
+
       {/* Estatísticas */}
       {controls.showStatistics && (
         <ChartStatisticsDisplay
@@ -282,10 +391,15 @@ export const ChartDisplay = memo(function ChartDisplay({
           <ChartComponent
             dados={chartData as any}
             chartContext={chartContext}
-            palette={controls.selectedPalette}
+            palette={controls.selectedPalette as PaletteKey}
             showAverage={controls.showAverage}
             average={average}
             enableAnimations={controls.enableAnimations}
+            chartHeight={controls.chartHeight}
+            showGrid={controls.showGrid}
+            showLegend={controls.showLegend}
+            strokeWidth={controls.strokeWidth}
+            borderRadius={controls.borderRadius}
           />
         </Suspense>
       </div>

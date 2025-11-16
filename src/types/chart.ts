@@ -19,6 +19,11 @@ export interface ChartControlsState {
   sortOrder: 'asc' | 'desc' | 'original';
   sortBy: 'name' | 'value';
   enableAnimations: boolean;
+  chartHeight: number;
+  showGrid: boolean;
+  showLegend: boolean;
+  strokeWidth: number;
+  borderRadius: number;
 }
 
 export type ChartContextType = 'comparison' | 'temporal' | 'evolution';

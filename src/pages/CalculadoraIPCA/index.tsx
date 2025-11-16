@@ -252,10 +252,10 @@ export function CalculadoraIPCAPage() {
                       <div className="space-y-6">
                         {/* Fórmula */}
                         <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4">
-                          <p className="text-xs text-purple-700 font-medium mb-2">
+                          <p className="text-xs text-purple-700 font-medium mb-1.5">
                             Fórmula de correção:
                           </p>
-                          <div className="font-mono text-sm text-purple-900 bg-white rounded px-3 py-2">
+                          <div className="font-mono text-sm text-purple-900 bg-white rounded px-2">
                             Valor × (Índice Final ÷ Índice Inicial)
                           </div>
                         </div>

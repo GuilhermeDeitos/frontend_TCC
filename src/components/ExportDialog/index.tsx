@@ -53,7 +53,6 @@ export function ExportDialog({
     }
   }, [hasActiveFilters]);
 
-  // Determinar quais dados usar
   const dataToExport = exportDataType === "filtered" ? filteredDados : dados;
 
   useEffect(() => {
@@ -151,91 +150,81 @@ export function ExportDialog({
   const canExport = dataToExport.length > 0 && columns.some((col) => col.selected);
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4 overflow-hidden">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl flex flex-col max-h-[90vh]">
-        {/* Cabeçalho FIXO */}
-        <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-white sticky top-0 z-10 rounded-t-lg">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-2 sm:p-4 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl flex flex-col max-h-[95vh] sm:max-h-[90vh]">
+        {/* Cabeçalho FIXO - Responsivo */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-3 sm:p-6 border-b border-gray-200 bg-white sticky top-0 z-10 rounded-t-lg">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
             </div>
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">Exportar Dados</h2>
-              <p className="text-sm text-gray-500">Configure as opções de exportação</p>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
+                Exportar Dados
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-500 truncate">
+                Configure as opções
+              </p>
             </div>
           </div>
 
-          {/* Seletor de Dados no Header - Mais Compacto */}
-          {hasActiveFilters && (
-            <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-700">
-                  {exportDataType === "all" ? "Todos" : "Filtrados"}:
-                </span>
-                <span className={`text-sm font-bold px-2 py-1 rounded-md ${
-                  exportDataType === "filtered" 
-                    ? "bg-blue-100 text-blue-700" 
-                    : "bg-gray-200 text-gray-700"
-                }`}>
-                  {dataToExport.length.toLocaleString('pt-BR')}
-                </span>
-              </div>
+          {/* Seletor de Dados - Compacto */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {hasActiveFilters && (
+              <div className="flex items-center gap-2 bg-gray-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-gray-200 flex-1 sm:flex-none">
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
+                    {exportDataType === "all" ? "Todos" : "Filtrados"}:
+                  </span>
+                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded-md ${
+                    exportDataType === "filtered" 
+                      ? "bg-blue-100 text-blue-700" 
+                      : "bg-gray-200 text-gray-700"
+                  }`}>
+                    {dataToExport.length.toLocaleString('pt-BR')}
+                  </span>
+                </div>
 
-              {/* Toggle Switch */}
-              <button
-                onClick={() => setExportDataType(prev => prev === "filtered" ? "all" : "filtered")}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  exportDataType === "filtered" ? "bg-blue-600" : "bg-gray-400"
-                }`}
-                title={exportDataType === "filtered" 
-                  ? "Clique para exportar todos os dados" 
-                  : "Clique para exportar apenas dados filtrados"
-                }
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    exportDataType === "filtered" ? "translate-x-6" : "translate-x-1"
+                <button
+                  onClick={() => setExportDataType(prev => prev === "filtered" ? "all" : "filtered")}
+                  className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex-shrink-0 ${
+                    exportDataType === "filtered" ? "bg-blue-600" : "bg-gray-400"
                   }`}
-                />
-              </button>
+                  title={exportDataType === "filtered" 
+                    ? "Clique para exportar todos os dados" 
+                    : "Clique para exportar apenas dados filtrados"
+                  }
+                >
+                  <span
+                    className={`inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${
+                      exportDataType === "filtered" ? "translate-x-5 sm:translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
 
-              <svg
-                className="w-4 h-4 text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                title="Alterne entre dados filtrados e todos os dados"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
+            <button
+              onClick={onClose}
+              disabled={exporting}
+              className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg disabled:opacity-50 flex-shrink-0"
+            >
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
-            </div>
-          )}
-
-          <button
-            onClick={onClose}
-            disabled={exporting}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg disabled:opacity-50"
-          >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+            </button>
+          </div>
         </div>
 
         {/* Corpo COM SCROLL */}
-        <div ref={scrollContainerRef} className="p-6 overflow-y-auto flex-grow relative">
+        <div ref={scrollContainerRef} className="p-3 sm:p-6 overflow-y-auto flex-grow relative">
           {/* Info sutil quando há filtros ativos */}
           {hasActiveFilters && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2 text-sm">
+            <div className="mb-4 p-2 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-2 text-xs sm:text-sm">
               <svg
-                className="w-4 h-4 text-blue-600 flex-shrink-0"
+                className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -251,18 +240,18 @@ export function ExportDialog({
                 {exportDataType === "filtered" ? (
                   <>
                     Exportando <strong>{filteredDados.length}</strong> registros filtrados 
-                    ({dados.length - filteredDados.length} ocultos)
+                    <span className="hidden sm:inline"> ({dados.length - filteredDados.length} ocultos)</span>
                   </>
                 ) : (
                   <>
-                    Exportando <strong>todos os {dados.length}</strong> registros disponíveis
+                    Exportando <strong>todos</strong> os {dados.length} registros
                   </>
                 )}
               </span>
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Coluna esquerda */}
             <div className="space-y-4">
               <FormatSelector format={format} onFormatChange={setFormat} />
@@ -303,42 +292,41 @@ export function ExportDialog({
             </div>
           </div>
 
-          {/* Indicador de scroll */}
           <ScrollIndicator containerRef={scrollContainerRef} />
         </div>
 
-        {/* Rodapé FIXO */}
-        <div className="flex justify-between items-center p-6 border-t border-gray-200 bg-gray-50 sticky bottom-0 z-10 rounded-b-lg">
-          <div className="flex items-center gap-2">
+        {/* Rodapé FIXO - Responsivo */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3 p-3 sm:p-6 border-t border-gray-200 bg-gray-50 sticky bottom-0 z-10 rounded-b-lg">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             {!canExport && (
-              <div className="bg-amber-100 text-amber-800 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="bg-amber-100 text-amber-800 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-2 w-full sm:w-auto justify-center">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                {dataToExport.length === 0 ? "Não há dados" : "Selecione colunas"}
+                <span className="truncate">{dataToExport.length === 0 ? "Não há dados" : "Selecione colunas"}</span>
               </div>
             )}
 
             {canExport && (
-              <div className="text-sm text-gray-600 flex items-center gap-2">
-                <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="text-xs sm:text-sm text-gray-600 flex items-center gap-2 w-full sm:w-auto">
+                <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className="font-medium">
-                  <span className="text-blue-600 font-bold">{dataToExport.length}</span> registros 
+                <span className="truncate">
+                  <span className="text-blue-600 font-bold">{dataToExport.length}</span> registros
                   {hasActiveFilters && exportDataType === "filtered" && (
-                    <span className="text-gray-500"> (filtrados)</span>
+                    <span className="text-gray-500 hidden sm:inline"> (filtrados)</span>
                   )}
                 </span>
               </div>
             )}
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
             <button
               onClick={onClose}
               disabled={exporting}
-              className="px-6 py-3 bg-white border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed  hover:cursor-pointer"
+              className="flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 bg-white border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
             >
               Cancelar
             </button>
@@ -346,26 +334,28 @@ export function ExportDialog({
             <button
               onClick={handleExport}
               disabled={!canExport || exporting}
-              className={`px-6 py-3 text-white rounded-lg flex items-center gap-2 font-medium transition-all ${
+              className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 text-white rounded-lg flex items-center justify-center gap-2 font-medium transition-all text-xs sm:text-sm ${
                 !canExport || exporting
                   ? "bg-blue-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700  hover:cursor-pointer"
+                  : "bg-blue-600 hover:bg-blue-700"
               }`}
             >
               {exporting ? (
                 <>
-                  <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  <span>Exportando...</span>
+                  <span className="hidden sm:inline">Exportando...</span>
+                  <span className="sm:hidden">...</span>
                 </>
               ) : (
                 <>
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
-                  <span>Exportar {format.toUpperCase()}</span>
+                  <span className="hidden sm:inline">Exportar {format.toUpperCase()}</span>
+                  <span className="sm:hidden">{format.toUpperCase()}</span>
                 </>
               )}
             </button>

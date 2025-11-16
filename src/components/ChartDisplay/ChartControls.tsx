@@ -17,7 +17,7 @@ interface ChartControlsProps {
   onDeselectAll?: () => void;
 }
 
-type TabType = "visibility" | "style" | "sorting" | "universities";
+type TabType = "visibility" | "style" | "sorting" | "size" | "universities";
 
 export const ChartControls = memo(function ChartControls({
   controls,
@@ -45,10 +45,19 @@ export const ChartControls = memo(function ChartControls({
     },
     {
       id: "style",
-      label: "Estilo",
+      label: "Cores",
       icon: (
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+        </svg>
+      ),
+    },
+    {
+      id: "size",
+      label: "Dimensões",
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
         </svg>
       ),
     },
@@ -63,7 +72,6 @@ export const ChartControls = memo(function ChartControls({
     },
   ];
 
-  // Adicionar aba de universidades se for gráfico de evolução
   if (isEvolutionChart && availableUniversidades.length > 0) {
     tabs.push({
       id: "universities",
@@ -85,7 +93,7 @@ export const ChartControls = memo(function ChartControls({
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`
-              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer
               ${
                 activeTab === tab.id
                   ? "bg-blue-600 text-white shadow-lg"
@@ -155,6 +163,28 @@ export const ChartControls = memo(function ChartControls({
             />
 
             <ToggleSwitch
+              label="Mostrar Grade"
+              checked={controls.showGrid}
+              onChange={(checked) => onControlChange("showGrid", checked)}
+              icon={
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                </svg>
+              }
+            />
+
+            <ToggleSwitch
+              label="Mostrar Legenda"
+              checked={controls.showLegend}
+              onChange={(checked) => onControlChange("showLegend", checked)}
+              icon={
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+              }
+            />
+
+            <ToggleSwitch
               label="Ativar Animações"
               checked={controls.enableAnimations}
               onChange={(checked) => onControlChange("enableAnimations", checked)}
@@ -174,7 +204,7 @@ export const ChartControls = memo(function ChartControls({
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
-            className="space-y-3"
+            className="space-y-4"
           >
             <h4 className="text-sm font-semibold text-gray-900 mb-3">Paleta de Cores</h4>
             
@@ -204,6 +234,125 @@ export const ChartControls = memo(function ChartControls({
                   </div>
                 </button>
               ))}
+            </div>
+
+            <div className="pt-4 border-t border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">Espessura da Linha</h4>
+              <div className="space-y-2">
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  step="0.5"
+                  value={controls.strokeWidth}
+                  onChange={(e) => onControlChange("strokeWidth", parseFloat(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                />
+                <div className="flex justify-between text-xs text-gray-600">
+                  <span>Fino (1px)</span>
+                  <span className="font-medium text-blue-600">{controls.strokeWidth}px</span>
+                  <span>Grosso (5px)</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">Arredondamento (Barras)</h4>
+              <div className="space-y-2">
+                <input
+                  type="range"
+                  min="0"
+                  max="20"
+                  step="2"
+                  value={controls.borderRadius}
+                  onChange={(e) => onControlChange("borderRadius", parseInt(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                />
+                <div className="flex justify-between text-xs text-gray-600">
+                  <span>Quadrado (0px)</span>
+                  <span className="font-medium text-blue-600">{controls.borderRadius}px</span>
+                  <span>Arredondado (20px)</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === "size" && (
+          <motion.div
+            key="size"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="space-y-4"
+          >
+            <h4 className="text-sm font-semibold text-gray-900 mb-3">Altura do Gráfico</h4>
+            
+            <div className="space-y-2">
+              <input
+                type="range"
+                min="300"
+                max="800"
+                step="50"
+                value={controls.chartHeight}
+                onChange={(e) => onControlChange("chartHeight", parseInt(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+              <div className="flex justify-between text-xs text-gray-600">
+                <span>Compacto (300px)</span>
+                <span className="font-medium text-blue-600">{controls.chartHeight}px</span>
+                <span>Grande (800px)</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+              <button
+                onClick={() => onControlChange("chartHeight", 300)}
+                className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                  controls.chartHeight === 300
+                    ? "bg-blue-600 text-white shadow-md"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Pequeno
+              </button>
+              <button
+                onClick={() => onControlChange("chartHeight", 400)}
+                className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                  controls.chartHeight === 400
+                    ? "bg-blue-600 text-white shadow-md"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Médio
+              </button>
+              <button
+                onClick={() => onControlChange("chartHeight", 550)}
+                className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                  controls.chartHeight === 550
+                    ? "bg-blue-600 text-white shadow-md"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Grande
+              </button>
+              <button
+                onClick={() => onControlChange("chartHeight", 700)}
+                className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                  controls.chartHeight === 700
+                    ? "bg-blue-600 text-white shadow-md"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Extra Grande
+              </button>
+            </div>
+
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mt-4">
+              <p className="text-xs text-blue-800">
+                <strong>Dica:</strong> Gráficos maiores facilitam a visualização de muitos dados.
+                Use altura menor para dashboards compactos.
+              </p>
             </div>
           </motion.div>
         )}
@@ -375,7 +524,6 @@ export const ChartControls = memo(function ChartControls({
 
 ChartControls.displayName = "ChartControls";
 
-// Componente auxiliar ToggleSwitch
 interface ToggleSwitchProps {
   label: string;
   checked: boolean;

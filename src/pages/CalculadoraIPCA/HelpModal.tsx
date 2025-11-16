@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { useEffect } from "react";
 
 interface HelpModalProps {
   isOpen: boolean;
@@ -6,19 +7,37 @@ interface HelpModalProps {
 }
 
 export function HelpModal({ isOpen, onClose }: HelpModalProps) {
+  // Prevenir scroll do body quando modal está aberto
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div 
+        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+          className="bg-white rounded-xl shadow-2xl max-w-2xl w-full flex flex-col"
+          style={{ maxHeight: "90vh" }}
         >
-          {/* Header */}
-          <div className="bg-blue-600 p-6 flex items-center justify-between">
+          {/* Header FIXO */}
+          <div className="bg-blue-600 p-6 flex items-center justify-between rounded-t-xl flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="bg-blue-500 p-2 rounded-lg">
                 <svg
@@ -47,6 +66,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
             <button
               onClick={onClose}
               className="text-white/80 hover:text-white transition-colors p-2 hover:bg-blue-700 rounded-lg"
+              title="Fechar"
             >
               <svg
                 className="w-6 h-6"
@@ -64,8 +84,8 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
             </button>
           </div>
 
-          {/* Content */}
-          <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+          {/* Content SCROLLABLE */}
+          <div className="flex-1 overflow-y-auto p-6">
             <div className="space-y-6">
               {/* Instruções */}
               <div>
@@ -195,7 +215,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
                 </div>
                 <p className="text-xs text-purple-700 mt-3">
                   A correção é calculada com base nos índices oficiais do IPCA
-                  fornecidos pelo IBGE, garantindo precisão nos cálculos.
+                  fornecidos pelo IBGE, garantindo precisão nos cálculos e a fórmula utilizada é a proposta por Amaral.
                 </p>
               </div>
 
@@ -275,14 +295,16 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
                   </div>
                 </div>
               </div>
+
+            
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="border-t border-gray-200 p-4 bg-gray-50">
+          {/* Footer FIXO */}
+          <div className="border-t border-gray-200 p-4 bg-gray-50 rounded-b-xl flex-shrink-0">
             <button
               onClick={onClose}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
             >
               Entendi, vamos calcular!
             </button>

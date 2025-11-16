@@ -1,62 +1,66 @@
-import { useState, useCallback, useMemo } from "react";
-import type { ChartControlsState, PaletteKey } from "../types/chart";
+import { useState, useMemo, useCallback } from "react";
+import type { ChartControlsState } from "../types/chart";
 import type { DadoGrafico } from "../types/consulta";
 
 interface UseChartControlsProps {
   dados: DadoGrafico[];
 }
 
+const DEFAULT_CONTROLS: ChartControlsState = {
+  showStatistics: false,
+  showInsights: false,
+  showAverage: false,
+  enableAnimations: true,
+  selectedPalette: "default",
+  sortBy: "value",
+  sortOrder: "original",
+  // Novos valores padrão
+  chartHeight: 400,
+  showGrid: true,
+  showLegend: true,
+  strokeWidth: 2,
+  borderRadius: 8,
+};
+
 export function useChartControls({ dados }: UseChartControlsProps) {
-  const [controls, setControls] = useState<ChartControlsState>({
-    selectedPalette: "default",
-    showAverage: false,
-    showStatistics: false,
-    showInsights: false,
-    sortOrder: "original",
-    sortBy: "value",
-    enableAnimations: true,
-  });
+  const [controls, setControls] = useState<ChartControlsState>(DEFAULT_CONTROLS);
 
-  // Aplicar ordenação aos dados
   const sortedData = useMemo(() => {
-    if (controls.sortOrder === "original") return dados;
+    if (controls.sortOrder === "original") {
+      return dados;
+    }
 
-    const sorted = [...dados].sort((a, b) => {
-      if (controls.sortBy === "name") {
-        return a.universidade.localeCompare(b.universidade);
-      }
-      return a.valor - b.valor;
-    });
+    const sorted = [...dados];
 
-    return controls.sortOrder === "desc" ? sorted.reverse() : sorted;
-  }, [dados, controls.sortOrder, controls.sortBy]);
+    if (controls.sortBy === "value") {
+      sorted.sort((a, b) => 
+        controls.sortOrder === "asc" ? a.valor - b.valor : b.valor - a.valor
+      );
+    } else {
+      sorted.sort((a, b) => {
+        const comparison = a.universidade.localeCompare(b.universidade);
+        return controls.sortOrder === "asc" ? comparison : -comparison;
+      });
+    }
 
-  // Calcular média
+    return sorted;
+  }, [dados, controls.sortBy, controls.sortOrder]);
+
   const average = useMemo(() => {
-    if (!controls.showAverage || dados.length === 0) return null;
-    const sum = dados.reduce((acc, item) => acc + item.valor, 0);
+    if (dados.length === 0) return null;
+    const sum = dados.reduce((acc, d) => acc + d.valor, 0);
     return sum / dados.length;
-  }, [dados, controls.showAverage]);
+  }, [dados]);
 
-  // Atualizar controle específico
-  const updateControl = useCallback(<K extends keyof ChartControlsState>(
-    key: K,
-    value: ChartControlsState[K]
-  ) => {
-    setControls((prev) => ({ ...prev, [key]: value }));
-  }, []);
+  const updateControl = useCallback(
+    <K extends keyof ChartControlsState>(key: K, value: ChartControlsState[K]) => {
+      setControls((prev) => ({ ...prev, [key]: value }));
+    },
+    []
+  );
 
-  // Resetar controles
   const resetControls = useCallback(() => {
-    setControls({
-      selectedPalette: "default",
-      showAverage: false,
-      showStatistics: false,
-      showInsights: false,
-      sortOrder: "original",
-      sortBy: "value",
-      enableAnimations: true,
-    });
+    setControls(DEFAULT_CONTROLS);
   }, []);
 
   return {
