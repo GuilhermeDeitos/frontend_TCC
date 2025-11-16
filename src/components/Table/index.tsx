@@ -11,8 +11,77 @@ export interface TableProps {
   tableType?: string;
   hideFilters?: boolean;
   isCompact?: boolean;
-  enableVirtualization?: boolean; // NOVO: controle de virtualização
+  enableVirtualization?: boolean;
 }
+
+/**
+ * Converte string no formato brasileiro para número
+ * Ex: "R$ 110.119.865,74" -> 110119865.74
+ */
+const parseValorBrasileiro = (value: any): number | null => {
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  // Remover símbolo de R$, espaços e underscores
+  const cleaned = value
+    .replace(/R\$\s*/g, '')
+    .replace(/\s/g, '')
+    .trim();
+
+  // Se estiver vazio ou for um traço, retornar null
+  if (!cleaned || cleaned === '-' || cleaned === '—') {
+    return null;
+  }
+
+  // Verificar se é um valor numérico brasileiro (com . como separador de milhar e , como decimal)
+  // Ex: 110.119.865,74
+  if (/^\d{1,3}(\.\d{3})*,\d{2}$/.test(cleaned)) {
+    // Remover pontos (separadores de milhar) e trocar vírgula por ponto
+    const number = parseFloat(cleaned.replace(/\./g, '').replace(',', '.'));
+    return isNaN(number) ? null : number;
+  }
+
+  // Verificar se é um número simples com vírgula
+  // Ex: 1.234,56 ou 1234,56
+  if (/^\d+\.?\d*,\d{1,2}$/.test(cleaned)) {
+    const number = parseFloat(cleaned.replace(/\./g, '').replace(',', '.'));
+    return isNaN(number) ? null : number;
+  }
+
+  // Tentar como número normal (formato americano ou inteiro)
+  const number = parseFloat(cleaned.replace(',', '.'));
+  return isNaN(number) ? null : number;
+};
+
+/**
+ * Determina a classe CSS do badge baseada no valor
+ */
+const formatCellValue = (value: any): string => {
+  const numericValue = parseValorBrasileiro(value);
+
+  // Se não for um número válido, retornar estilo neutro
+  if (numericValue === null) {
+    return 'bg-gray-100 text-gray-800';
+  }
+
+  // Zero - azul
+  if (numericValue === 0) {
+    return 'bg-blue-100 text-blue-900';
+  }
+
+  // Negativo - vermelho
+  if (numericValue < 0) {
+    return 'bg-red-100 text-red-900';
+  }
+
+  // Positivo - verde
+  return 'bg-green-100 text-green-900';
+};
 
 export const Table = memo(function Table({
   items,
@@ -20,7 +89,7 @@ export const Table = memo(function Table({
   keyMap,
   itemsPerPage = 25,
   isCompact = false,
-  enableVirtualization = false, // Padrão: desabilitado
+  enableVirtualization = false,
 }: TableProps) {
   
   const {
@@ -111,30 +180,52 @@ export const Table = memo(function Table({
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedItems.map((item, index) => {
-                    const isEven = index % 2 === 0;
+                  {paginatedItems.map((item, rowIndex) => {
+                    const isEven = rowIndex % 2 === 0;
 
                     return (
                       <tr
-                        key={item.id || index}
+                        key={item.id || rowIndex}
                         className={`
                           ${isEven ? "bg-white" : "bg-gray-50"}
                           hover:bg-blue-50 transition-colors
                         `}
                       >
-                        {columns.map((column) => {
+                        {columns.map((column, colIndex) => {
                           const key = keyMap[column] || column.toLowerCase().replace(/ /g, "_");
                           const value = item[key];
 
                           return (
                             <td
                               key={column}
-                              className={`
-                                px-3 text-sm text-gray-900 whitespace-nowrap
-                                ${isCompact ? "py-2" : "py-3"}
-                              `}
+                              className={`whitespace-nowrap ${
+                                isCompact
+                                  ? "px-3 py-2 text-xs"
+                                  : "px-6 py-4 text-sm"
+                              }`}
                             >
-                              {value !== null && value !== undefined ? value : "-"}
+                              {colIndex === 0 ? (
+                                // Primeira coluna com indicador visual
+                                <div className="flex items-center">
+                                  <div
+                                    className={`flex-shrink-0 bg-blue-600 rounded-full mr-3 ${
+                                      isCompact ? "w-1.5 h-1.5" : "w-2 h-2"
+                                    }`}
+                                  ></div>
+                                  <span className="font-medium text-gray-900">
+                                    {value !== null && value !== undefined ? value : "-"}
+                                  </span>
+                                </div>
+                              ) : (
+                                // Outras colunas com badge colorido
+                                <span
+                                  className={`inline-flex items-center rounded-full font-medium ${
+                                    isCompact ? "px-2 py-0.5 text-xs" : "px-3 py-1"
+                                  } ${formatCellValue(value)}`}
+                                >
+                                  {value !== null && value !== undefined ? value : "-"}
+                                </span>
+                              )}
                             </td>
                           );
                         })}
