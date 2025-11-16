@@ -1,20 +1,41 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense, startTransition } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
+// Imports estáticos (essenciais)
 import { Header } from "../../components/Header";
 import { Footer } from "../../components/Footer";
 import { BlueTitleCard } from "../../components/BlueTitleCard";
 import { ConsultaForm } from "../../components/ConsultaForm";
 import { LoadingIndicator } from "../../components/LoadingIndicator";
-import { ResultsViewer } from "../../components/ResultsViewer";
 import { TourGuide } from "../../components/TourGuide";
 import { TourRestartButton } from "../../components/TourRestartButton";
+
+// Lazy imports (componentes pesados)
+const ResultsViewer = lazy(() => 
+  import("../../components/ResultsViewer").then(module => ({ default: module.ResultsViewer }))
+);
+const HistoricoConsultas = lazy(() => 
+  import("../../components/HistoricoConsultas").then(module => ({ default: module.HistoricoConsultas }))
+);
+const ErrorPanel = lazy(() => 
+  import("../../components/ErrorPanel").then(module => ({ default: module.ErrorPanel }))
+);
+
+// Novos componentes otimizados
+import { CacheControls } from "../../components/CacheControls";
+import { OfflineWarning } from "../../components/OfflineWarning";
+import { OfflineBanner } from "../../components/OfflineBanner";
+
+// Hooks
 import { useConsultaPageTour } from "../../hooks/useConsultaPageTour";
 import { useConsultaResultadosTour } from "../../hooks/useConsultaResultadosTour";
 import { useConsultaGraficosTour } from "../../hooks/useConsultaGraficosTour";
 import { useTransparenciaData } from "../../hooks/useTransparenciaData";
-import type { FormData } from "../../types/consulta";
-import Swal from "sweetalert2";
-import { ErrorPanel } from "../../components/ErrorPanel";
-import { motion, AnimatePresence } from "framer-motion";
+import { useConsultaCache, type IParamsOriginais } from "../../hooks/useConsultaCacheData";
+import { useConsultaHandlers } from "../../hooks/useConsultaHandlers";
+import { useHistoricoHandlers } from "../../hooks/useHistoricoHandlers";
+import { useCacheRestoration } from "../../hooks/useCacheRestoration";
+import { useAutoSaveCache } from "../../hooks/useAutoSaveCache";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -32,9 +53,29 @@ const containerVariants = {
   },
 };
 
+// Loading fallback component
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center p-8">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+  </div>
+);
+
 export function ConsultaPage() {
+  // Estados principais
+  const [parametrosOriginais, setParametrosOriginais] = useState<IParamsOriginais | null>(null);
+  const [historicoAberto, setHistoricoAberto] = useState(false);
+  const [apiOffline, setApiOffline] = useState(false);
+  const [animationKey, setAnimationKey] = useState(0);
+
+  const [parametrosConsulta, setParametrosConsulta] = useState<{
+    anoInicial: number;
+    anoFinal: number;
+  }>({ anoInicial: 0, anoFinal: 0 });
+
+  // Hook de dados
   const {
     dadosConsulta,
+    setDadosConsulta,
     isLoading,
     loadingMessage,
     listaIPCA,
@@ -48,107 +89,132 @@ export function ConsultaPage() {
     error,
   } = useTransparenciaData();
 
-  // Tours independentes
+  // Hook de cache
+  const {
+    consultaAtual,
+    historico,
+    salvarConsulta,
+    obterMetadadosHistorico,
+    cacheEstaValido,
+    getTempoRestanteCache,
+    limparCache,
+    limparHistorico,
+    removerDoHistorico,
+    atualizarVisualizacao,
+  } = useConsultaCache();
+
+  // Tours
   const { tourIntro } = useConsultaPageTour();
   const tourResultados = useConsultaResultadosTour();
   const tourGraficos = useConsultaGraficosTour();
 
-  // Estado para armazenar parâmetros da última consulta
-  const [parametrosConsulta, setParametrosConsulta] = useState<{
-    anoInicial: number;
-    anoFinal: number;
-  }>({ anoInicial: 0, anoFinal: 0 });
-
-  // Estado para controlar animações
-  const [animationKey, setAnimationKey] = useState(0);
-
-  // Refs para rastrear tours já solicitados
   const toursJaSolicitados = useRef({
     resultados: false,
     graficos: false,
   });
 
-  // Atualizar chave de animação quando os dados mudam
+  // Callback para mudança de visualização
+  const handleVisualizacaoChange = useCallback(
+    (tipo: "tabela" | "grafico") => {
+      startTransition(() => {
+        atualizarVisualizacao(tipo);
+
+        if (
+          tipo === "grafico" &&
+          !tourGraficos.isTourCompleted &&
+          !toursJaSolicitados.current.graficos
+        ) {
+          toursJaSolicitados.current.graficos = true;
+          setTimeout(() => {
+            tourGraficos.startTour(true);
+          }, 600);
+        }
+      });
+    },
+    [tourGraficos, atualizarVisualizacao]
+  );
+
+  // Hook customizado para handlers de consulta
+  const { handleSubmit, handleRetryApi, handleCancelarConsulta } = useConsultaHandlers({
+    checkApiStatus,
+    setApiOffline,
+    setDadosConsulta,
+    setParametrosConsulta,
+    setParametrosOriginais,
+    consultarDados,
+    historicoCount: historico.length,
+    setHistoricoAberto,
+    toursJaSolicitados,
+  });
+
+  // Hook customizado para handlers de histórico
+  const { historicoLoading, handleReexecutarConsulta } = useHistoricoHandlers({
+    obterMetadadosHistorico,
+    consultarDados,
+    setDadosConsulta,
+    setParametrosConsulta,
+    setParametrosOriginais,
+    handleVisualizacaoChange,
+  });
+
+  // Hook de restauração de cache
+  const { cacheJaRestaurado, setCacheJaRestaurado } = useCacheRestoration({
+    consultaAtual,
+    cacheEstaValido,
+    isLoading,
+    setDadosConsulta,
+    setParametrosConsulta,
+    setParametrosOriginais,
+    handleVisualizacaoChange,
+    limparCache,
+  });
+
+  // Hook de salvamento automático
+  useAutoSaveCache({
+    dadosConsulta,
+    parametrosConsulta,
+    parametrosOriginais,
+    salvarConsulta,
+  });
+
+  // Callback para limpar cache
+  const handleClearCache = useCallback(() => {
+    limparCache();
+    setDadosConsulta([]);
+    setCacheJaRestaurado(false);
+  }, [limparCache, setDadosConsulta, setCacheJaRestaurado]);
+
+  // Verificar status da API ao iniciar
   useEffect(() => {
-    setAnimationKey((prev) => prev + 1);
+    const verificarStatusInicial = async () => {
+      const status = await checkApiStatus();
+      setApiOffline(!status);
+    };
+
+    verificarStatusInicial();
+  }, [checkApiStatus]);
+
+  // Atualizar animation key quando dados mudam
+  useEffect(() => {
+    if (dadosConsulta.length > 0) {
+      startTransition(() => {
+        setAnimationKey((prev) => prev + 1);
+      });
+    }
   }, [dadosConsulta.length]);
 
-  // Auto-iniciar tour de introdução na primeira visita
+  // Tour inicial
   useEffect(() => {
-    if (!tourIntro.isTourCompleted && !tourIntro.isActive) {
+    if (!tourIntro.isTourCompleted && !tourIntro.isActive && !apiOffline) {
       const timer = setTimeout(() => {
         tourIntro.startTour();
       }, 800);
 
       return () => clearTimeout(timer);
     }
-  }, [tourIntro]);
+  }, [tourIntro, apiOffline]);
 
-  const handleSubmit = (formData: FormData) => {
-    const params = {
-      data_inicio: `${formData.mesInicial}/${formData.anoInicial}`,
-      data_fim: `${formData.mesFinal}/${formData.anoFinal}`,
-      tipo_correcao: formData.tipoCorrecao,
-      ipca_referencia: formData.ipcaReferencia,
-    };
-
-    setParametrosConsulta({
-      anoInicial: parseInt(formData.anoInicial),
-      anoFinal: parseInt(formData.anoFinal),
-    });
-
-    // Resetar flag de tour de resultados para nova consulta
-    toursJaSolicitados.current.resultados = false;
-
-    consultarDados(params);
-  };
-
-  // Handler para mudança de visualização para gráficos
-  const handleVisualizacaoChange = useCallback(
-    (tipo: "tabela" | "grafico") => {
-      if (
-        tipo === "grafico" &&
-        !tourGraficos.isTourCompleted &&
-        !toursJaSolicitados.current.graficos
-      ) {
-        console.log("📈 Mudou para gráficos, iniciando tour");
-        toursJaSolicitados.current.graficos = true;
-
-        setTimeout(() => {
-          tourGraficos.startTour(true);
-        }, 600);
-      }
-    },
-    [tourGraficos]
-  );
-
-  // Handler para abrir modal de correção
-
-  const handleCancelarConsulta = () => {
-    Swal.fire({
-      title: "Cancelar consulta?",
-      text: "Os dados processados até o momento serão mantidos, mas a consulta será interrompida.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Sim, cancelar",
-      cancelButtonText: "Não, continuar",
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        cancelarConsulta();
-
-        Swal.fire(
-          "Consulta cancelada",
-          "A consulta foi interrompida. Os dados já processados estão disponíveis para análise.",
-          "info"
-        );
-      }
-    });
-  };
-
-
-  // Determinar qual tour está ativo
+  // Determinar tour ativo
   const activeTour = tourIntro.isActive
     ? tourIntro
     : tourResultados.isActive
@@ -157,7 +223,6 @@ export function ConsultaPage() {
     ? tourGraficos
     : null;
 
-  // Coletar todos os tours completados
   const allCompletedTours = [
     ...tourIntro.completedTours,
     ...tourResultados.completedTours,
@@ -166,19 +231,31 @@ export function ConsultaPage() {
 
   const uniqueCompletedTours = Array.from(new Set(allCompletedTours));
 
+  const mostrarErro = error && !apiOffline && dadosConsulta.length === 0;
+  const mostrarOfflineComHistorico = apiOffline && historico.length > 0;
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
+      
       <AnimatePresence mode="wait">
-        {error ? (
-          <motion.div
-            key="error"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <ErrorPanel message={error} retry={retryFetch} />
-          </motion.div>
+        {mostrarErro ? (
+          <Suspense fallback={<LoadingFallback />}>
+            <motion.div
+              key="error"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <ErrorPanel message={error} retry={retryFetch} />
+            </motion.div>
+          </Suspense>
+        ) : mostrarOfflineComHistorico ? (
+          <OfflineBanner
+            historicoCount={historico.length}
+            onRetry={handleRetryApi}
+            onOpenHistorico={() => setHistoricoAberto(true)}
+          />
         ) : (
           <motion.div
             key="content"
@@ -197,7 +274,18 @@ export function ConsultaPage() {
 
             <div className="flex-grow bg-gray-50 py-8">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                {/* Formulário de Consulta */}
+                <CacheControls
+                  hasCache={!!consultaAtual && cacheEstaValido()}
+                  cacheTime={getTempoRestanteCache()}
+                  historicoCount={historico.length}
+                  onOpenHistorico={() => setHistoricoAberto(true)}
+                  onClearCache={handleClearCache}
+                />
+
+                {apiOffline && dadosConsulta.length > 0 && (
+                  <OfflineWarning onRetry={handleRetryApi} />
+                )}
+
                 <motion.div className="mb-6">
                   <div data-tour="consulta-form">
                     <ConsultaForm
@@ -210,7 +298,6 @@ export function ConsultaPage() {
                   </div>
                 </motion.div>
 
-                {/* Loading */}
                 <AnimatePresence>
                   {isLoading && (
                     <motion.div
@@ -223,42 +310,41 @@ export function ConsultaPage() {
                       <LoadingIndicator
                         message={loadingMessage}
                         progresso={progressoConsulta.percentual}
-                        registrosProcessados={
-                          progressoConsulta.registrosProcessados
-                        }
+                        registrosProcessados={progressoConsulta.registrosProcessados}
                         totalRegistros={progressoConsulta.totalRegistros}
                         anosProcessados={progressoConsulta.anosProcessados}
                         anoInicial={progressoConsulta.anoInicial}
                         anoFinal={progressoConsulta.anoFinal}
-                        onCancel={handleCancelarConsulta}
+                        onCancel={() => handleCancelarConsulta(cancelarConsulta)}
                       />
                     </motion.div>
                   )}
                 </AnimatePresence>
 
-                {/* Resultados */}
                 <AnimatePresence>
                   {!isLoading && dadosConsulta.length > 0 && (
-                    <motion.div
-                      key={`results-${animationKey}`}
-                      initial={{ opacity: 0, y: 30 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -30 }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 100,
-                        damping: 15,
-                        duration: 0.6,
-                      }}
-                    >
-                      <div data-tour="results-viewer">
-                        <ResultsViewer
-                          dados={dadosConsulta}
-                          parametrosConsulta={parametrosConsulta}
-                          onVisualizacaoChange={handleVisualizacaoChange}
-                        />
-                      </div>
-                    </motion.div>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <motion.div
+                        key={`results-${animationKey}`}
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -30 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 100,
+                          damping: 15,
+                          duration: 0.6,
+                        }}
+                      >
+                        <div data-tour="results-viewer">
+                          <ResultsViewer
+                            dados={dadosConsulta}
+                            parametrosConsulta={parametrosConsulta}
+                            onVisualizacaoChange={handleVisualizacaoChange}
+                          />
+                        </div>
+                      </motion.div>
+                    </Suspense>
                   )}
                 </AnimatePresence>
               </div>
@@ -269,8 +355,7 @@ export function ConsultaPage() {
 
       <Footer />
 
-      {/* Tour Guide */}
-      {activeTour && (
+      {activeTour && !apiOffline && (
         <TourGuide
           isActive={activeTour.isActive}
           currentStep={activeTour.currentStep}
@@ -285,46 +370,64 @@ export function ConsultaPage() {
         />
       )}
 
-      {/* Botão para reiniciar tour */}
-      <TourRestartButton
-        onRestartTour={() => {
-          // Reiniciar o tour mais relevante baseado no contexto
-          if (dadosConsulta.length > 0) {
-            tourResultados.restartTour();
-          } else {
-            tourIntro.restartTour();
+      {!apiOffline && (
+        <TourRestartButton
+          onRestartTour={() => {
+            if (dadosConsulta.length > 0) {
+              tourResultados.restartTour();
+            } else {
+              tourIntro.restartTour();
+            }
+          }}
+          onRestartAllTours={() => {
+            tourIntro.restartAllTours();
+            tourResultados.restartAllTours();
+            tourGraficos.restartAllTours();
+          }}
+          onToggleTour={(tourId, completed) => {
+            if (tourId === "consulta_intro") {
+              tourIntro.toggleTourStatus(tourId, completed);
+            } else if (tourId === "consulta_resultados") {
+              tourResultados.toggleTourStatus(tourId, completed);
+            } else if (tourId === "consulta_graficos") {
+              tourGraficos.toggleTourStatus(tourId, completed);
+            }
+          }}
+          tourKey={
+            activeTour
+              ? activeTour === tourIntro
+                ? "consulta_intro"
+                : activeTour === tourResultados
+                ? "consulta_resultados"
+                : activeTour === tourGraficos
+                ? "consulta_graficos"
+                : "consulta_correcao"
+              : undefined
           }
-        }}
-        onRestartAllTours={() => {
-          tourIntro.restartAllTours();
-          tourResultados.restartAllTours();
-          tourGraficos.restartAllTours();
-        }}
-        onToggleTour={(tourId, completed) => {
-          // Delegar para o tour apropriado
-          if (tourId === "consulta_intro") {
-            tourIntro.toggleTourStatus(tourId, completed);
-          } else if (tourId === "consulta_resultados") {
-            tourResultados.toggleTourStatus(tourId, completed);
-          } else if (tourId === "consulta_graficos") {
-            tourGraficos.toggleTourStatus(tourId, completed);
-          } 
-        }}
-        tourKey={
-          activeTour
-            ? activeTour === tourIntro
-              ? "consulta_intro"
-              : activeTour === tourResultados
-              ? "consulta_resultados"
-              : activeTour === tourGraficos
-              ? "consulta_graficos"
-              : "consulta_correcao"
-            : undefined
-        }
-        completedTours={uniqueCompletedTours}
-        completedToursCount={uniqueCompletedTours.length}
-        isFirstTimeUser={tourIntro.isFirstTimeUser}
-      />
+          completedTours={uniqueCompletedTours}
+          completedToursCount={uniqueCompletedTours.length}
+          isFirstTimeUser={tourIntro.isFirstTimeUser}
+        />
+      )}
+
+      <AnimatePresence>
+        {historicoAberto && (
+          <Suspense fallback={<LoadingFallback />}>
+            <HistoricoConsultas
+              historico={historico}
+              onReexecutar={handleReexecutarConsulta}
+              onRemover={removerDoHistorico}
+              onLimparTudo={() => {
+                limparHistorico();
+                setHistoricoAberto(false);
+              }}
+              isOpen={historicoAberto}
+              onClose={() => setHistoricoAberto(false)}
+              isLoading={historicoLoading}
+            />
+          </Suspense>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

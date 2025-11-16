@@ -12,6 +12,8 @@ interface ExportDialogProps {
   open: boolean;
   onClose: () => void;
   dados: DadosConsulta[];
+  filteredDados: DadosConsulta[];
+  hasActiveFilters: boolean;
   tableName?: string;
 }
 
@@ -19,10 +21,14 @@ export function ExportDialog({
   open,
   onClose,
   dados,
+  filteredDados,
+  hasActiveFilters,
   tableName = "universidades",
 }: ExportDialogProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  
+  const [exportDataType, setExportDataType] = useState<"filtered" | "all">(
+    hasActiveFilters ? "filtered" : "all"
+  );  
   const [format, setFormat] = useState<ExportFormat>("xlsx");
   const [filename, setFilename] = useState(tableName);
   const [includeTitle, setIncludeTitle] = useState(true);
@@ -40,6 +46,15 @@ export function ExportDialog({
   const [jsonFormat, setJsonFormat] = useState<"pretty" | "compact">("pretty");
   const [exporting, setExporting] = useState(false);
   const [columns, setColumns] = useState<ColumnOption[]>([]);
+
+  useEffect(() => {
+    if (hasActiveFilters) {
+      setExportDataType("filtered");
+    }
+  }, [hasActiveFilters]);
+
+  // Determinar quais dados usar
+  const dataToExport = exportDataType === "filtered" ? filteredDados : dados;
 
   useEffect(() => {
     if (open && dados.length > 0) {
@@ -90,12 +105,12 @@ export function ExportDialog({
     try {
       setExporting(true);
 
-      if (!dados.length || !columns.some((col) => col.selected)) {
+      if (!dataToExport.length || !columns.some((col) => col.selected)) {
         return;
       }
 
       const config = {
-        dados,
+        dados: dataToExport,
         columns,
         filename: filename.trim() || tableName,
         includeTitle,
@@ -133,7 +148,7 @@ export function ExportDialog({
 
   if (!open) return null;
 
-  const canExport = dados.length > 0 && columns.some((col) => col.selected);
+  const canExport = dataToExport.length > 0 && columns.some((col) => col.selected);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4 overflow-hidden">
@@ -152,6 +167,57 @@ export function ExportDialog({
             </div>
           </div>
 
+          {/* Seletor de Dados no Header - Mais Compacto */}
+          {hasActiveFilters && (
+            <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700">
+                  {exportDataType === "all" ? "Todos" : "Filtrados"}:
+                </span>
+                <span className={`text-sm font-bold px-2 py-1 rounded-md ${
+                  exportDataType === "filtered" 
+                    ? "bg-blue-100 text-blue-700" 
+                    : "bg-gray-200 text-gray-700"
+                }`}>
+                  {dataToExport.length.toLocaleString('pt-BR')}
+                </span>
+              </div>
+
+              {/* Toggle Switch */}
+              <button
+                onClick={() => setExportDataType(prev => prev === "filtered" ? "all" : "filtered")}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  exportDataType === "filtered" ? "bg-blue-600" : "bg-gray-400"
+                }`}
+                title={exportDataType === "filtered" 
+                  ? "Clique para exportar todos os dados" 
+                  : "Clique para exportar apenas dados filtrados"
+                }
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    exportDataType === "filtered" ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+
+              <svg
+                className="w-4 h-4 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                title="Alterne entre dados filtrados e todos os dados"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+          )}
+
           <button
             onClick={onClose}
             disabled={exporting}
@@ -165,6 +231,37 @@ export function ExportDialog({
 
         {/* Corpo COM SCROLL */}
         <div ref={scrollContainerRef} className="p-6 overflow-y-auto flex-grow relative">
+          {/* Info sutil quando há filtros ativos */}
+          {hasActiveFilters && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2 text-sm">
+              <svg
+                className="w-4 h-4 text-blue-600 flex-shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span className="text-blue-800">
+                {exportDataType === "filtered" ? (
+                  <>
+                    Exportando <strong>{filteredDados.length}</strong> registros filtrados 
+                    ({dados.length - filteredDados.length} ocultos)
+                  </>
+                ) : (
+                  <>
+                    Exportando <strong>todos os {dados.length}</strong> registros disponíveis
+                  </>
+                )}
+              </span>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Coluna esquerda */}
             <div className="space-y-4">
@@ -218,7 +315,7 @@ export function ExportDialog({
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                {dados.length === 0 ? "Não há dados" : "Selecione colunas"}
+                {dataToExport.length === 0 ? "Não há dados" : "Selecione colunas"}
               </div>
             )}
 
@@ -227,7 +324,12 @@ export function ExportDialog({
                 <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className="font-medium">{dados.length} registros prontos</span>
+                <span className="font-medium">
+                  <span className="text-blue-600 font-bold">{dataToExport.length}</span> registros 
+                  {hasActiveFilters && exportDataType === "filtered" && (
+                    <span className="text-gray-500"> (filtrados)</span>
+                  )}
+                </span>
               </div>
             )}
           </div>
@@ -236,7 +338,7 @@ export function ExportDialog({
             <button
               onClick={onClose}
               disabled={exporting}
-              className="px-6 py-3 bg-white border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-3 bg-white border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed  hover:cursor-pointer"
             >
               Cancelar
             </button>
@@ -247,7 +349,7 @@ export function ExportDialog({
               className={`px-6 py-3 text-white rounded-lg flex items-center gap-2 font-medium transition-all ${
                 !canExport || exporting
                   ? "bg-blue-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40"
+                  : "bg-blue-600 hover:bg-blue-700  hover:cursor-pointer"
               }`}
             >
               {exporting ? (

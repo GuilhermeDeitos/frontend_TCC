@@ -30,6 +30,30 @@ export function useConsultaGraficosTour() {
       placement: "bottom" as const,
     },
     {
+      id: "chart-controls-toggle",
+      target: '[data-tour="chart-controls-toggle"]',
+      title: "🎛️ Controles de Personalização",
+      content:
+        "Clique aqui para abrir/fechar o painel de controles avançados do gráfico. Aqui você pode:\n• 🎨 Mudar paleta de cores\n• 📊 Mostrar estatísticas e insights\n• 📏 Adicionar linha de média\n• ↕️ Ordenar dados\n• 🎬 Controlar animações\n\nOs indicadores mostram quais personalizações estão ativas.",
+      placement: "bottom" as const,
+    },
+    {
+      id: "chart-controls",
+      target: '[data-tour="chart-controls"]',
+      title: "🎨 Painel de Personalização",
+      content:
+        "Use as abas para acessar diferentes controles:\n• 👁️ Visualização: Ative estatísticas, insights e linha de média\n• 🎨 Estilo: Escolha entre 6 paletas de cores\n• ↕️ Ordenação: Organize os dados por valor ou nome\n• 🎓 Universidades: Selecione quais exibir (evolução)",
+      placement: "top" as const,
+      condition: () => !!document.querySelector('[data-tour="chart-controls"]'),
+      beforeShow: () => {
+        // Expandir controles se estiverem fechados
+        const toggleButton = document.querySelector('[data-tour="chart-controls-toggle"] button') as HTMLButtonElement;
+        if (toggleButton && !document.querySelector('[data-tour="chart-controls"]')) {
+          toggleButton.click();
+        }
+      },
+    },
+    {
       id: "university-selector",
       target: '[data-tour="university-selector"]',
       title: "🎓 Seleção de Universidades",
@@ -39,19 +63,11 @@ export function useConsultaGraficosTour() {
       condition: () => !!document.querySelector('[data-tour="university-selector"]'),
     },
     {
-      id: "chart-controls",
-      target: '[data-tour="chart-controls"]',
-      title: "🎨 Personalização Avançada",
-      content:
-        "Personalize seu gráfico:\n• Paleta de cores (4 opções)\n• Mostrar/ocultar estatísticas\n• Linha de média\n• Ordenação (para barras)\n• Exportar em alta qualidade",
-      placement: "top" as const,
-    },
-    {
       id: "chart-statistics",
       target: '[data-tour="chart-statistics"]',
       title: "📊 Estatísticas Detalhadas",
       content:
-        "Visualize métricas importantes dos seus dados:\n• Total e Média\n• Máximo e Mínimo\n• Mediana e Desvio Padrão\n• Crescimento (para séries temporais)\n• Quantidade de registros\n\nAs estatísticas se adaptam ao contexto da análise.",
+        "Visualize métricas importantes dos seus dados:\n• Total e Média\n• Máximo e Mínimo\n• Mediana e Desvio Padrão\n• Crescimento (para séries temporais)\n• Quantidade de registros\n\nAtive através do painel de controles na aba 'Visualização'.",
       placement: "bottom" as const,
       condition: () => !!document.querySelector('[data-tour="chart-statistics"]'),
     },
@@ -60,7 +76,7 @@ export function useConsultaGraficosTour() {
       target: '[data-tour="chart-canvas"]',
       title: "📈 Área Interativa do Gráfico",
       content:
-        "Este é o gráfico com seus dados. Recursos disponíveis:\n• Passe o mouse sobre elementos para ver detalhes\n• Use o zoom (barra inferior) para focar em intervalos\n• Clique na legenda para filtrar dados\n• Os nomes completos aparecem ao passar o mouse",
+        "Este é o gráfico com seus dados. Recursos disponíveis:\n• 🖱️ Passe o mouse sobre elementos para ver detalhes\n• 🔍 Use o zoom (barra inferior) para focar em intervalos\n• 👆 Clique na legenda para filtrar dados\n• 💾 Exporte em alta qualidade (PNG, SVG)\n\nOs nomes completos aparecem ao passar o mouse!",
       placement: "top" as const,
     },
     {
@@ -88,11 +104,11 @@ export function useConsultaGraficosTour() {
       const chartArea = document.querySelector('[data-tour="chart-area"]');
       const comparisonSelector = document.querySelector('[data-tour="comparison-selector"]');
       const chartTypeSelector = document.querySelector('[data-tour="chart-type-selector"]');
-      const chartControls = document.querySelector('[data-tour="chart-controls"]');
+      const chartControlsToggle = document.querySelector('[data-tour="chart-controls-toggle"]');
       const chartCanvas = document.querySelector('[data-tour="chart-canvas"]');
       
       // Verificar se os elementos principais estão presentes e visíveis
-      if (chartArea && comparisonSelector && chartTypeSelector && chartControls && chartCanvas) {
+      if (chartArea && comparisonSelector && chartTypeSelector && chartControlsToggle && chartCanvas) {
         const isChartAreaVisible = window.getComputedStyle(chartArea).display !== 'none';
         const isChartCanvasVisible = window.getComputedStyle(chartCanvas).display !== 'none';
         

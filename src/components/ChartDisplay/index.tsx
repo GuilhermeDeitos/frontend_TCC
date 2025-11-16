@@ -1,197 +1,152 @@
-import { useState, useMemo, useRef, useCallback, lazy, Suspense } from "react";
-import { AnimatePresence } from "framer-motion";
+import { memo, lazy, Suspense, useMemo, startTransition, useState } from "react";
 import type { DadoGrafico, TipoGrafico } from "../../types/consulta";
-import type { ChartControlsState, ChartContextType } from "../../types/chart";
-import { COLOR_PALETTES } from "../../constants/colorPalettes";
-import { calculateStatistics, sortChartData } from "../../utils/chartUtils";
+import type { ChartContextType } from "../../types/chart";
+import { motion, AnimatePresence } from "framer-motion";
+
+// Imports estáticos
 import { ChartControls } from "./ChartControls";
 import { ChartStatisticsDisplay } from "./ChartStatistics";
 import { ChartInsights } from "./ChartInsights";
 
-// Lazy load dos componentes pesados
-const UniversitySelector = lazy(() =>
-  import("./UniversitySelector").then((m) => ({
-    default: m.UniversitySelector,
-  }))
+// Lazy load dos componentes pesados de gráficos
+const BarChart = lazy(() => 
+  import("./ChartRenderers").then(m => ({ default: m.BarChart }))
 );
-const BarChartRenderer = lazy(() =>
-  import("./ChartRenderers").then((m) => ({ default: m.BarChartRenderer }))
+const LineChart = lazy(() => 
+  import("./ChartRenderers").then(m => ({ default: m.LineChart }))
 );
-const LineChartRenderer = lazy(() =>
-  import("./ChartRenderers").then((m) => ({ default: m.LineChartRenderer }))
+const PieChart = lazy(() => 
+  import("./ChartRenderers").then(m => ({ default: m.PieChart }))
 );
-const PieChartRenderer = lazy(() =>
-  import("./ChartRenderers").then((m) => ({ default: m.PieChartRenderer }))
+const AreaChart = lazy(() => 
+  import("./ChartRenderers").then(m => ({ default: m.AreaChart }))
 );
-const AreaChartRenderer = lazy(() =>
-  import("./ChartRenderers").then((m) => ({ default: m.AreaChartRenderer }))
+const RadarChart = lazy(() => 
+  import("./ChartRenderers").then(m => ({ default: m.RadarChart }))
 );
+const EvolutionChart = lazy(() => 
+  import("./ChartRenderers").then(m => ({ default: m.EvolutionChart }))
+);
+
+// Hooks
+import { useEvolutionChartData } from "../../hooks/useEvolutionChartData";
+import { useChartStatistics } from "../../hooks/useChartStatistics";
+import { useChartControls } from "../../hooks/useChartControls";
 
 interface ChartDisplayProps {
   dados: DadoGrafico[];
   tipoGrafico: TipoGrafico;
-  showStats?: boolean;
-  enableZoom?: boolean;
-  chartContext?: ChartContextType;
+  chartContext: ChartContextType;
   onUniversidadeSelect?: (universidades: string[]) => void;
   selectedUniversidades?: string[];
 }
 
-// Componente de loading para Suspense
-const ChartLoadingFallback = () => (
-  <div className="flex items-center justify-center h-96 bg-gray-50 rounded-lg">
-    <div className="flex flex-col items-center gap-3">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      <p className="text-sm text-gray-600">Carregando gráfico...</p>
+// Loading spinner
+const ChartLoader = memo(() => (
+  <div className="flex items-center justify-center p-12">
+    <div className="relative">
+      <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600"></div>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24">
+          <path
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 4 0 01-2 2h-2a2 2 0 01-2-2z"
+          />
+        </svg>
+      </div>
     </div>
   </div>
-);
+));
+ChartLoader.displayName = "ChartLoader";
 
-export function ChartDisplay({
+export const ChartDisplay = memo(function ChartDisplay({
   dados,
   tipoGrafico,
-  showStats = true,
-  enableZoom = true,
-  chartContext = "comparison",
+  chartContext,
   onUniversidadeSelect,
   selectedUniversidades = [],
 }: ChartDisplayProps) {
-  const chartRef = useRef<HTMLDivElement>(null);
-  const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
-
-  const [controls, setControls] = useState<ChartControlsState>({
-    selectedPalette: "default",
-    showAverage: false,
-    showStatistics: showStats,
-    sortOrder: "original",
-    sortBy: "value",
+  
+  // Estado para controlar expansão dos controles
+  const [isControlsExpanded, setIsControlsExpanded] = useState(false);
+  
+  // Hook de controles com ordenação (começar sem insights)
+  const { controls, sortedData, average, updateControl, resetControls } = useChartControls({
+    dados,
   });
 
-  // Handler otimizado para mudanças de controle
-  const handleControlChange = useCallback(
-    (key: keyof ChartControlsState, value: any) => {
-      setControls((prev) => ({ ...prev, [key]: value }));
-    },
-    []
+  // Processar dados de evolução se necessário
+  const { evolutionData, availableUniversidades } = useEvolutionChartData(
+    dados,
+    selectedUniversidades
   );
 
-  // Extrair universidades únicas dos dados (para evolução anual)
-  const availableUniversities = useMemo(() => {
-    if (chartContext !== "evolution") return [];
+  // Calcular estatísticas (usando dados ordenados)
+  const statistics = useChartStatistics(sortedData);
 
-    const universities = new Set<string>();
-    dados.forEach((item) => {
-      // Extrair nome da universidade (remover ano se estiver presente)
-      const name = item.universidade.split(" (")[0];
-      universities.add(name);
-    });
+  // Handler de toggle de universidades (para gráfico de evolução)
+  const handleUniversidadeToggle = (universidade: string) => {
+    if (!onUniversidadeSelect) return;
 
-    return Array.from(universities);
-  }, [dados, chartContext]);
+    startTransition(() => {
+      const isSelected = selectedUniversidades.includes(universidade);
 
-  // Filtrar dados por universidades selecionadas (para evolução anual)
-  const filteredData = useMemo(() => {
-    if (chartContext !== "evolution" || selectedUniversidades.length === 0) {
-      return dados;
-    }
-
-    return dados.filter((item) => {
-      const universityName = item.universidade.split(" (")[0];
-      return selectedUniversidades.includes(universityName);
-    });
-  }, [dados, chartContext, selectedUniversidades]);
-
-  // Dados processados e ordenados
-  const processedData = useMemo(() => {
-    return sortChartData(filteredData, controls.sortBy, controls.sortOrder);
-  }, [filteredData, controls.sortBy, controls.sortOrder]);
-
-  // Calcular estatísticas (com crescimento apenas para contextos temporais)
-  const statistics = useMemo(() => {
-    const shouldCalculateGrowth =
-      chartContext === "temporal" || chartContext === "evolution";
-    return calculateStatistics(processedData, shouldCalculateGrowth);
-  }, [processedData, chartContext]);
-
-  // Cores da paleta selecionada
-  const colors = useMemo(() => {
-    return COLOR_PALETTES[
-      controls.selectedPalette as keyof typeof COLOR_PALETTES
-    ];
-  }, [controls.selectedPalette]);
-
-  // Handler de highlight otimizado
-  const handleHighlight = useCallback((index: number | null) => {
-    setHighlightedIndex(index);
-  }, []);
-
-  // Handler de seleção de universidades
-  const handleUniversitySelection = useCallback(
-    (universities: string[]) => {
-      if (onUniversidadeSelect) {
-        onUniversidadeSelect(universities);
+      if (isSelected) {
+        onUniversidadeSelect(selectedUniversidades.filter((u) => u !== universidade));
+      } else {
+        onUniversidadeSelect([...selectedUniversidades, universidade]);
       }
-    },
-    [onUniversidadeSelect]
-  );
+    });
+  };
 
-  // Renderizar gráfico baseado no tipo
-  const renderChart = useCallback(() => {
-    const commonProps = {
-      dados: processedData,
-      colors,
-      statistics,
-      showAverage: controls.showAverage,
-      enableZoom,
-      highlightedIndex,
-      onHighlight: handleHighlight,
-    };
+  const handleSelectAll = () => {
+    if (!onUniversidadeSelect) return;
+    startTransition(() => {
+      onUniversidadeSelect(availableUniversidades);
+    });
+  };
+
+  const handleDeselectAll = () => {
+    if (!onUniversidadeSelect) return;
+    startTransition(() => {
+      onUniversidadeSelect([]);
+    });
+  };
+
+  // Determinar se deve usar virtualização
+  const isEvolutionChart = chartContext === "evolution";
+  const chartData = isEvolutionChart ? evolutionData : sortedData;
+
+  // Componente de gráfico baseado no tipo
+  const ChartComponent = useMemo(() => {
+    if (isEvolutionChart) {
+      return EvolutionChart;
+    }
 
     switch (tipoGrafico) {
       case "barras":
-        return (
-          <Suspense fallback={<ChartLoadingFallback />}>
-            <BarChartRenderer {...commonProps} />
-          </Suspense>
-        );
+        return BarChart;
       case "linhas":
-        return (
-          <Suspense fallback={<ChartLoadingFallback />}>
-            <LineChartRenderer {...commonProps} />
-          </Suspense>
-        );
+        return LineChart;
       case "pizza":
-        return (
-          <Suspense fallback={<ChartLoadingFallback />}>
-            <PieChartRenderer {...commonProps} />
-          </Suspense>
-        );
+        return PieChart;
       case "area":
-        return (
-          <Suspense fallback={<ChartLoadingFallback />}>
-            <AreaChartRenderer {...commonProps} />
-          </Suspense>
-        );
+        return AreaChart;
+      case "radar":
+        return RadarChart;
       default:
-        return null;
+        return BarChart;
     }
-  }, [
-    processedData,
-    colors,
-    statistics,
-    controls.showAverage,
-    enableZoom,
-    highlightedIndex,
-    handleHighlight,
-    tipoGrafico,
-  ]);
+  }, [tipoGrafico, isEvolutionChart]);
 
-  // Estado vazio
-  if (!dados || dados.length === 0) {
+  if (dados.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+      <div className="text-center py-12 bg-gray-50 rounded-lg">
         <svg
-          className="w-16 h-16 text-gray-400 mb-4"
+          className="mx-auto h-12 w-12 text-gray-400"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -203,72 +158,167 @@ export function ChartDisplay({
             d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
           />
         </svg>
-        <p className="text-gray-500 text-lg font-medium">
-          Nenhum dado disponível
-        </p>
-        <p className="text-gray-400 text-sm mt-2">
-          Selecione os filtros apropriados para visualizar os dados
+        <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum dado disponível</h3>
+        <p className="mt-1 text-sm text-gray-500">
+          Ajuste os filtros ou parâmetros de consulta para visualizar dados.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4" data-tour="chart-display">
-      {/* Seletor de Universidades (apenas para evolução anual) */}
-      {chartContext === "evolution" && availableUniversities.length > 0 && (
-        <Suspense
-          fallback={
-            <div className="h-32 bg-gray-50 rounded-lg animate-pulse" />
-          }
+    <div className="space-y-4">
+      {/* Botão para expandir/colapsar controles */}
+      <div data-tour="chart-controls-toggle">
+        <button
+          onClick={() => setIsControlsExpanded(!isControlsExpanded)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-purple-600 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 group"
         >
-          <div data-tour="university-selector">
-            <UniversitySelector
-              availableUniversities={availableUniversities}
-              selectedUniversidades={selectedUniversidades}
-              onSelectionChange={handleUniversitySelection}
-            />
+          <span className="flex items-center gap-2 font-medium">
+            <svg 
+              className="w-5 h-5" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" 
+              />
+            </svg>
+            {isControlsExpanded ? "Ocultar" : "Mostrar"} Controles de Personalização
+          </span>
+          
+          <div className="flex items-center gap-3">
+            {/* Indicadores de configurações ativas */}
+            {!isControlsExpanded && (
+              <div className="flex items-center gap-2 text-xs">
+                {controls.selectedPalette !== "default" && (
+                  <span className="px-2 py-1 bg-white/20 rounded-md">
+                    🎨 {controls.selectedPalette}
+                  </span>
+                )}
+                {controls.sortOrder !== "original" && (
+                  <span className="px-2 py-1 bg-white/20 rounded-md">
+                    ↕️ {controls.sortOrder}
+                  </span>
+                )}
+                {controls.showAverage && (
+                  <span className="px-2 py-1 bg-white/20 rounded-md">
+                    📊 média
+                  </span>
+                )}
+              </div>
+            )}
+            
+            <motion.svg
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              animate={{ rotate: isControlsExpanded ? 180 : 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </motion.svg>
           </div>
-        </Suspense>
-      )}
-
-      {/* Controles */}
-      <div data-tour="chart-controls">
-        <ChartControls
-          controls={controls}
-          onControlChange={handleControlChange}
-          chartRef={chartRef}
-          fileName="grafico-analise"
-          tipoGrafico={tipoGrafico}
-          chartContext={chartContext}
-        />
+        </button>
       </div>
 
-      {/* Estatísticas */}
+      {/* Controles com abas (colapsável) */}
       <AnimatePresence>
-        {controls.showStatistics && statistics && (
-          <div data-tour="chart-statistics">
-            <ChartStatisticsDisplay
-              statistics={statistics}
-              chartContext={chartContext}
+        {isControlsExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: "auto", marginTop: 16 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            transition={{ duration: 0.3 }}
+            data-tour="chart-controls"
+          >
+            <ChartControls
+              controls={controls}
+              onControlChange={updateControl}
+              onReset={resetControls}
+              isEvolutionChart={isEvolutionChart}
+              availableUniversidades={availableUniversidades}
+              selectedUniversidades={selectedUniversidades}
+              onUniversidadeToggle={handleUniversidadeToggle}
+              onSelectAll={handleSelectAll}
+              onDeselectAll={handleDeselectAll}
             />
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Gráfico */}
-      <div
-        ref={chartRef}
-        className="bg-white border-2 border-gray-200 rounded-xl p-6 shadow-sm"
-        data-tour="chart-canvas"
-      >
-        {renderChart()}
-      </div>
+      {/* Estatísticas */}
+      {controls.showStatistics && (
+        <ChartStatisticsDisplay
+          statistics={statistics}
+          totalRecords={dados.length}
+        />
+      )}
 
       {/* Insights */}
-      {controls.showStatistics && statistics && (
-        <ChartInsights statistics={statistics} chartContext={chartContext} />
+      {controls.showInsights && (
+        <ChartInsights
+          statistics={statistics}
+          dados={sortedData}
+        />
       )}
+
+      {/* Gráfico */}
+      <div 
+        className="bg-white p-6 rounded-lg shadow-md border border-gray-200"
+        data-tour="chart-canvas"
+      >
+        <Suspense fallback={<ChartLoader />}>
+          <ChartComponent
+            dados={chartData as any}
+            chartContext={chartContext}
+            palette={controls.selectedPalette}
+            showAverage={controls.showAverage}
+            average={average}
+            enableAnimations={controls.enableAnimations}
+          />
+        </Suspense>
+      </div>
+
+      {/* Info de registros */}
+      <div className="text-center text-sm text-gray-600">
+        {isEvolutionChart ? (
+          <span>
+            Exibindo evolução de{" "}
+            <strong>
+              {selectedUniversidades.length > 0
+                ? selectedUniversidades.length
+                : availableUniversidades.length}
+            </strong>{" "}
+            {selectedUniversidades.length === 1 || availableUniversidades.length === 1
+              ? "universidade"
+              : "universidades"}
+          </span>
+        ) : (
+          <span>
+            Exibindo <strong>{sortedData.length}</strong>{" "}
+            {sortedData.length === 1 ? "registro" : "registros"}
+            {controls.sortOrder !== "original" && (
+              <span className="text-blue-600 ml-1">
+                (ordenado por {controls.sortBy === "value" ? "valor" : "nome"} -{" "}
+                {controls.sortOrder === "asc" ? "crescente" : "decrescente"})
+              </span>
+            )}
+          </span>
+        )}
+      </div>
     </div>
   );
-}
+});
+
+ChartDisplay.displayName = "ChartDisplay";

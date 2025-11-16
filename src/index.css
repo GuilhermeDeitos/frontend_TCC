@@ -20,3 +20,53 @@ body{
 .animate-fade-in {
  animation: fadeIn 0.3s ease-out;
 }
+
+/* Forçar aceleração de hardware para tooltips e gráficos */
+.recharts-tooltip-wrapper {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Suavizar transições de hover */
+.recharts-sector,
+.recharts-bar,
+.recharts-line,
+.recharts-area {
+  transition: opacity 0.15s ease-in-out;
+}
+
+/* Garantir que legendas não sejam afetadas por hover */
+.recharts-legend-wrapper {
+  pointer-events: none !important;
+}
+
+.recharts-legend-item {
+  pointer-events: auto !important;
+}
+
+/* Otimizar renderização de texto */
+.recharts-text {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Evitar reflow durante animações */
+.recharts-surface {
+  will-change: contents;
+}
+
+/* Cursor personalizado para áreas clicáveis */
+.recharts-sector:hover,
+.recharts-bar:hover,
+.recharts-dot:hover {
+  cursor: pointer;
+  filter: brightness(1.1);
+}
+
+/* Garantir que o tooltip fique sempre visível */
+.recharts-tooltip-wrapper {
+  z-index: 9999 !important;
+}

@@ -1,21 +1,48 @@
-import { useState, useMemo } from "react";
-import type {
-  DadosConsulta,
-  TipoVisualizacao,
-  TipoGrafico,
-  DadoGrafico,
-  CampoComparacao,
-  TipoComparacao,
-} from "../../types/consulta";
-import { Table } from "../Table";
-import { ChartSelector } from "../ChartSelector";
-import { ChartDisplay } from "../ChartDisplay";
-import { DownloadOptions } from "../DownloadOptions";
-import { ComparacaoSelector } from "../ComparacaoSelector";
-import { CorrecaoModal } from "../CorrecaoModal";
-import { ResultsFilterPanel } from "./FilterPanel";
-import { TableControls } from "./TableControls";
+import {
+  memo,
+  lazy,
+  Suspense,
+  useMemo,
+  useCallback,
+  startTransition,
+} from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import type { DadosConsulta } from "../../types/consulta";
 import type { ChartContextType } from "../../types/chart";
+
+// Imports estáticos (leves)
+import { DownloadOptions } from "../../components/DownloadOptions";
+import { ComparacaoSelector } from "../../components/ComparacaoSelector";
+import { CompactFilterPanel } from "../../components/CompactFilterPanel";
+import { FilterSummary } from "../../components/FilterSummary";
+import { TableControls } from "../../components/ResultsViewer/TableControls";
+
+// Lazy imports (componentes pesados)
+const Table = lazy(() =>
+  import("../../components/Table").then((m) => ({ default: m.Table }))
+);
+const ChartDisplay = lazy(() =>
+  import("../../components/ChartDisplay").then((m) => ({
+    default: m.ChartDisplay,
+  }))
+);
+const ChartSelector = lazy(() =>
+  import("../../components/ChartSelector").then((m) => ({
+    default: m.ChartSelector,
+  }))
+);
+const CorrecaoModal = lazy(() =>
+  import("../../components/CorrecaoModal").then((m) => ({
+    default: m.CorrecaoModal,
+  }))
+);
+
+// Hooks customizados
+import { useDataFilters } from "../../hooks/useDataFilter";
+import { useResultsViewerState } from "../../hooks/useResultsViewerState";
+import { useChartDataProcessor } from "../../hooks/useChartDataProcessor";
+import { useTableDataProcessor } from "../../hooks/useTableDataProcessor";
+import { useCorrecaoMetadata } from "../../hooks/useCorrecaoMetadata";
 
 interface ResultsViewerProps {
   dados: DadosConsulta[];
@@ -26,52 +53,156 @@ interface ResultsViewerProps {
   onVisualizacaoChange?: (tipo: "tabela" | "grafico") => void;
 }
 
-interface FatorCorrecaoAno {
-  ano: number;
-  fator_correcao: number;
-  ipca_periodo?: number;
-  ipca_referencia?: number;
-  periodo_referencia?: string;
-  tipo_correcao?: string;
-}
+// Componente de loading
+const LoadingFallback = memo(() => (
+  <div className="flex items-center justify-center p-8">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+  </div>
+));
+LoadingFallback.displayName = "LoadingFallback";
 
-export function ResultsViewer({
+// Constantes
+const TABLE_COLUMNS = [
+  "Universidade",
+  "Ano",
+  "Função",
+  "Grupo Natureza",
+  "Origem Recursos",
+  "Orçamento LOA (R$)",
+  "Total Orçamentário Até Mês (R$)",
+  "Total Orçamentário No Mês (R$)",
+  "Disp. Orçamentária Até Mês (R$)",
+  "Disp. Orçamentária No Mês (R$)",
+  "Empenhado Até Mês (R$)",
+  "Empenhado No Mês (R$)",
+  "Liquidado Até Mês (R$)",
+  "Liquidado No Mês (R$)",
+  "Pago Até Mês (R$)",
+  "Pago No Mês (R$)",
+];
+
+const COLUMN_KEY_MAP = {
+  Universidade: "universidade",
+  Ano: "ano",
+  Função: "funcao",
+  "Grupo Natureza": "grupo_natureza",
+  "Origem Recursos": "origem_recursos",
+  "Orçamento LOA (R$)": "orcamento_loa",
+  "Total Orçamentário Até Mês (R$)": "total_orcamentario_ate_mes",
+  "Total Orçamentário No Mês (R$)": "total_orcamentario_no_mes",
+  "Disp. Orçamentária Até Mês (R$)": "disponibilidade_orcamentaria_ate_mes",
+  "Disp. Orçamentária No Mês (R$)": "disponibilidade_orcamentaria_no_mes",
+  "Empenhado Até Mês (R$)": "empenhado_ate_mes",
+  "Empenhado No Mês (R$)": "empenhado_no_mes",
+  "Liquidado Até Mês (R$)": "liquidado_ate_mes",
+  "Liquidado No Mês (R$)": "liquidado_no_mes",
+  "Pago Até Mês (R$)": "pago_ate_mes",
+  "Pago No Mês (R$)": "pago_no_mes",
+};
+
+export const ResultsViewer = memo(function ResultsViewer({
   dados,
   parametrosConsulta,
   onVisualizacaoChange,
 }: ResultsViewerProps) {
-  const [tipoVisualizacao, setTipoVisualizacao] =
-    useState<TipoVisualizacao>("tabela");
-  const [tipoGrafico, setTipoGrafico] = useState<TipoGrafico>("barras");
-  const [campoComparacao, setCampoComparacao] =
-    useState<CampoComparacao>("valor_pago");
-  const [tipoComparacao, setTipoComparacao] =
-    useState<TipoComparacao>("universidades");
-  const [anoSelecionado, setAnoSelecionado] = useState<string>("todos");
-  const [modalAberto, setModalAberto] = useState(false);
+  // Função de extração de nome de universidade (memoizada)
+  const extrairNomeUniversidade = useCallback(
+    (universidadeCompleta: string): string => {
+      let resultado = universidadeCompleta.trim();
 
-  // Novos estados para filtros e controles de tabela
-  const [filterType, setFilterType] = useState<string>("all");
-  const [filterValue, setFilterValue] = useState<string>("");
-  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
-  const [selectedUniversidadesEvolucao, setSelectedUniversidadesEvolucao] =
-    useState<string[]>([]);
+      if (resultado.includes("/")) {
+        resultado = resultado.split("/")[1].trim();
+      }
 
-  const [isCompactMode, setIsCompactMode] = useState<boolean>(false);
+      if (resultado.includes(" - ")) {
+        resultado = resultado.split(" - ")[1].trim();
+      }
 
-  // Handler melhorado para mudança de visualização
-  const handleVisualizacaoChange = (tipo: TipoVisualizacao) => {
-    setTipoVisualizacao(tipo);
-    if (onVisualizacaoChange) {
-      onVisualizacaoChange(tipo);
-    }
-  };
+      const siglas = [
+        "UEL",
+        "UEM",
+        "UEPG",
+        "UNIOESTE",
+        "UNICENTRO",
+        "UNESPAR",
+        "UENP",
+      ];
+      for (const sigla of siglas) {
+        if (resultado.includes(sigla)) {
+          return sigla;
+        }
+      }
 
-  const handleAbrirModalCorrecao = () => {
-    setModalAberto(true);
-  };
+      return resultado;
+    },
+    []
+  );
 
-  // Verificar anos faltantes na consulta
+  // Estado do ResultsViewer
+  const {
+    tipoVisualizacao,
+    tipoGrafico,
+    campoComparacao,
+    tipoComparacao,
+    anoSelecionado,
+    modalAberto,
+    itemsPerPage,
+    selectedUniversidadesEvolucao,
+    isCompactMode,
+    setTipoGrafico,
+    setCampoComparacao,
+    setTipoComparacao,
+    setAnoSelecionado,
+    setItemsPerPage,
+    setSelectedUniversidadesEvolucao,
+    setIsCompactMode,
+    handleVisualizacaoChange,
+    handleAbrirModalCorrecao,
+    handleFecharModalCorrecao,
+  } = useResultsViewerState(onVisualizacaoChange);
+
+  // Filtros de dados
+  const {
+    filters,
+    filteredData,
+    availableYears,
+    availableFilterOptions,
+    activeFiltersCount,
+    handleAddFilter,
+    handleRemoveFilter,
+    handleFilterChange,
+  } = useDataFilters({
+    dados,
+    extractUniversityName: extrairNomeUniversidade,
+  });
+
+  // Processar dados de tabela
+  const { dadosTabela } = useTableDataProcessor({
+    dados: filteredData,
+    extrairNomeUniversidade,
+  });
+
+  // Processar dados de gráfico
+  const dadosGrafico = useChartDataProcessor({
+    dados: filteredData,
+    campoComparacao,
+    tipoComparacao,
+    anoSelecionado,
+    extrairNomeUniversidade,
+  });
+
+  // Metadados de correção
+  const { fatoresCorrecaoPorAno, infoCorrecaoBasica } =
+    useCorrecaoMetadata(dados);
+
+  // Anos disponíveis para filtro
+  const anosDisponiveis = useMemo(() => {
+    if (!dados.length) return [];
+    const anos = [...new Set(dados.map((item) => item.ano.toString()))];
+    return anos.sort();
+  }, [dados]);
+
+  // Anos ausentes
   const anosAusentes = useMemo(() => {
     if (!parametrosConsulta) return [];
 
@@ -81,322 +212,36 @@ export function ResultsViewer({
         .map((item) => item.ano)
     );
 
-    const anosAusentes = [];
+    const ausentes = [];
     for (
       let ano = parametrosConsulta.anoInicial;
       ano <= parametrosConsulta.anoFinal;
       ano++
     ) {
       if (!anosPresentes.has(ano)) {
-        anosAusentes.push(ano);
+        ausentes.push(ano);
       }
     }
 
-    return anosAusentes;
+    return ausentes;
   }, [dados, parametrosConsulta]);
 
-  // Extrair fatores de correção por ano
-  const fatoresCorrecaoPorAno = useMemo(() => {
-    if (!dados.length) return [];
-
-    const dadosPorAno = new Map<number, DadosConsulta[]>();
-
-    dados.forEach((item) => {
-      if (!item.universidade.includes("Total")) {
-        const ano = item.ano;
-        if (!dadosPorAno.has(ano)) {
-          dadosPorAno.set(ano, []);
-        }
-        dadosPorAno.get(ano)?.push(item);
-      }
-    });
-
-    const fatores: FatorCorrecaoAno[] = [];
-
-    dadosPorAno.forEach((registrosAno, ano) => {
-      const registroReferencia = registrosAno[0];
-
-      if (registroReferencia) {
-        const correcaoAplicada =
-          registroReferencia._correcao_aplicada ||
-          registroReferencia.correcao_aplicada;
-
-        if (correcaoAplicada) {
-          fatores.push({
-            ano,
-            fator_correcao: correcaoAplicada.fator_correcao,
-            ipca_periodo: correcaoAplicada.ipca_periodo,
-            ipca_referencia: correcaoAplicada.ipca_referencia,
-            periodo_referencia: correcaoAplicada.periodo_referencia,
-            tipo_correcao: correcaoAplicada.tipo_correcao,
-          });
-        } else if (registroReferencia.fator_correcao) {
-          fatores.push({
-            ano,
-            fator_correcao: registroReferencia.fator_correcao,
-            ipca_referencia: registroReferencia.ipca_base,
-            periodo_referencia: registroReferencia.periodo_base,
-          });
-        }
-      }
-    });
-
-    return fatores.sort((a, b) => b.ano - a.ano);
-  }, [dados]);
-
-  const infoCorrecaoBasica = useMemo(() => {
-    if (!fatoresCorrecaoPorAno.length) return null;
-
-    const primeiroFator = fatoresCorrecaoPorAno[0];
-
-    return {
-      periodo_referencia: primeiroFator.periodo_referencia || "-",
-      tipo_correcao: primeiroFator.tipo_correcao || "mensal",
-      total_anos: fatoresCorrecaoPorAno.length,
-    };
-  }, [fatoresCorrecaoPorAno]);
-
-  // Extrair lista de anos disponíveis
-  const anosDisponiveis = useMemo(() => {
-    if (!dados.length) return [];
-    const anos = [...new Set(dados.map((item) => item.ano.toString()))];
-    return anos.sort((a, b) => a.localeCompare(b));
-  }, [dados]);
-
-  // Opções de filtro baseadas no tipo selecionado
-  const filterOptions = useMemo(() => {
-    if (filterType === "all" || filterType === "year") return [];
-
-    const values = new Set<string>();
-    dados.forEach((item) => {
-      if (!item.universidade.includes("Total")) {
-        const fieldValue = item[filterType as keyof DadosConsulta];
-        if (fieldValue) {
-          values.add(String(fieldValue));
-        }
-      }
-    });
-
-    return Array.from(values)
-      .sort()
-      .map((value) => ({ value, label: value }));
-  }, [dados, filterType]);
-
-  // Filtrar dados da tabela
-  const filteredDados = useMemo(() => {
-    if (filterType === "all" || !filterValue) return dados;
-
-    return dados.filter((item) => {
-      if (filterType === "year") {
-        return item.ano.toString() === filterValue;
-      }
-
-      const fieldValue = item[filterType as keyof DadosConsulta];
-      return String(fieldValue) === filterValue;
-    });
-  }, [dados, filterType, filterValue]);
-
-  // Preparar dados para gráficos
-  const prepararDadosGrafico = (): DadoGrafico[] => {
-    const dadosFiltrados = dados.filter(
-      (item) => !item.universidade.includes("Total")
-    );
-
-    if (tipoComparacao === "universidades") {
-      const dadosAgrupados = dadosFiltrados.reduce((acc, item) => {
-        if (
-          anoSelecionado !== "todos" &&
-          item.ano.toString() !== anoSelecionado
-        ) {
-          return acc;
-        }
-
-        const universidade = extrairNomeUniversidade(item.universidade);
-        if (!acc[universidade]) {
-          acc[universidade] = 0;
-        }
-        acc[universidade] += item[campoComparacao] || 0;
-        return acc;
-      }, {} as Record<string, number>);
-
-      return Object.entries(dadosAgrupados)
-        .map(([universidade, valor]) => ({
-          universidade,
-          valor: Number(valor.toFixed(2)),
-        }))
-        .sort((a, b) => b.valor - a.valor);
-    } else if (tipoComparacao === "anos") {
-      const dadosAgrupados = dadosFiltrados.reduce((acc, item) => {
-        const ano = item.ano.toString();
-        if (!acc[ano]) {
-          acc[ano] = 0;
-        }
-        acc[ano] += item[campoComparacao] || 0;
-        return acc;
-      }, {} as Record<string, number>);
-
-      return Object.entries(dadosAgrupados)
-        .map(([ano, valor]) => ({
-          universidade: `Ano ${ano}`,
-          valor: Number(valor.toFixed(2)),
-        }))
-        .sort((a, b) => a.universidade.localeCompare(b.universidade));
-    } else if (tipoComparacao === "evolucao_anual") {
-      const dadosPorUniversidadeAno = dadosFiltrados.reduce((acc, item) => {
-        if (
-          anoSelecionado !== "todos" &&
-          item.ano.toString() !== anoSelecionado
-        ) {
-          return acc;
-        }
-
-        const universidade = extrairNomeUniversidade(item.universidade);
-        const ano = item.ano.toString();
-        const chave = `${universidade}-${ano}`;
-
-        if (!acc[chave]) {
-          acc[chave] = {
-            universidade,
-            ano,
-            valor: 0,
-          };
-        }
-
-        acc[chave].valor += item[campoComparacao] || 0;
-
-        return acc;
-      }, {} as Record<string, { universidade: string; ano: string; valor: number }>);
-
-      const resultado = Object.values(dadosPorUniversidadeAno)
-        .map((item) => ({
-          universidade: `${item.universidade} (${item.ano})`,
-          valor: Number(item.valor.toFixed(2)),
-        }))
-        .sort((a, b) => a.universidade.localeCompare(b.universidade));
-
-      return resultado;
-    }
-
-    return [];
-  };
-
-  const extrairNomeUniversidade = (universidadeCompleta: string): string => {
-    let resultado = universidadeCompleta.trim();
-
-    if (resultado.includes("/")) {
-      resultado = resultado.split("/")[1].trim();
-    }
-
-    if (resultado.includes(" - ")) {
-      resultado = resultado.split(" - ")[1].trim();
-    }
-
-    const siglas = [
-      "UEL",
-      "UEM",
-      "UEPG",
-      "UNIOESTE",
-      "UNICENTRO",
-      "UNESPAR",
-      "UENP",
-    ];
-    for (const sigla of siglas) {
-      if (resultado.includes(sigla)) {
-        return sigla;
-      }
-    }
-
-    return resultado;
-  };
-
-  const getTableColumns = () => {
-    return [
-      "Universidade",
-      "Ano",
-      "Função",
-      "Grupo Natureza",
-      "Origem Recursos",
-      "Orçamento LOA (R$)",
-      "Total Orçamentário Até Mês (R$)",
-      "Total Orçamentário No Mês (R$)",
-      "Disp. Orçamentária Até Mês (R$)",
-      "Disp. Orçamentária No Mês (R$)",
-      "Empenhado Até Mês (R$)",
-      "Empenhado No Mês (R$)",
-      "Liquidado Até Mês (R$)",
-      "Liquidado No Mês (R$)",
-      "Pago Até Mês (R$)",
-      "Pago No Mês (R$)",
-    ];
-  };
-
-  const columnKeyMap = {
-    Universidade: "universidade",
-    Ano: "ano",
-    Função: "funcao",
-    "Grupo Natureza": "grupo_natureza",
-    "Origem Recursos": "origem_recursos",
-    "Orçamento LOA (R$)": "orcamento_loa",
-    "Total Orçamentário Até Mês (R$)": "total_orcamentario_ate_mes",
-    "Total Orçamentário No Mês (R$)": "total_orcamentario_no_mes",
-    "Disp. Orçamentária Até Mês (R$)": "disponibilidade_orcamentaria_ate_mes",
-    "Disp. Orçamentária No Mês (R$)": "disponibilidade_orcamentaria_no_mes",
-    "Empenhado Até Mês (R$)": "empenhado_ate_mes",
-    "Empenhado No Mês (R$)": "empenhado_no_mes",
-    "Liquidado Até Mês (R$)": "liquidado_ate_mes",
-    "Liquidado No Mês (R$)": "liquidado_no_mes",
-    "Pago Até Mês (R$)": "pago_ate_mes",
-    "Pago No Mês (R$)": "pago_no_mes",
-  };
-
-  const mapDataForTable = () => {
-    return filteredDados.map((item, index) => {
-      const universidadeDisplay = extrairNomeUniversidade(item.universidade);
-
-      return {
-        id: item.id || index + 1,
-        universidade: universidadeDisplay,
-        ano: item.ano.toString(),
-        funcao: item.funcao || "-",
-        grupo_natureza: item.grupo_natureza || "-",
-        origem_recursos: item.origem_recursos || "-",
-        orcamento_loa: formatCurrency(item.orcamento_inicial_loa || 0),
-        total_orcamentario_ate_mes: formatCurrency(
-          item.total_orcamentario_ate_mes || 0
-        ),
-        total_orcamentario_no_mes: formatCurrency(
-          item.total_orcamentario_no_mes || 0
-        ),
-        disponibilidade_orcamentaria_ate_mes: formatCurrency(
-          item.disponibilidade_orcamentaria_ate_mes || 0
-        ),
-        disponibilidade_orcamentaria_no_mes: formatCurrency(
-          item.disponibilidade_orcamentaria_no_mes || 0
-        ),
-        empenhado_ate_mes: formatCurrency(item.empenhado_ate_mes || 0),
-        empenhado_no_mes: formatCurrency(item.empenhado_no_mes || 0),
-        liquidado_ate_mes: formatCurrency(item.liquidado_ate_mes || 0),
-        liquidado_no_mes: formatCurrency(item.liquidado_no_mes || 0),
-        pago_ate_mes: formatCurrency(item.pago_ate_mes || 0),
-        pago_no_mes: formatCurrency(item.pago_no_mes || 0),
-      };
-    });
-  };
-
-  const formatCurrency = (value: number): string => {
-    return value.toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  };
-
+  // Contexto do gráfico
   const chartContext = useMemo((): ChartContextType => {
     if (tipoComparacao === "anos") return "temporal";
     if (tipoComparacao === "evolucao_anual") return "evolution";
     return "comparison";
   }, [tipoComparacao]);
+
+  // Handler de mudança de visualização com transição
+  const handleVisualizacaoChangeWithTransition = useCallback(
+    (tipo: "tabela" | "grafico") => {
+      startTransition(() => {
+        handleVisualizacaoChange(tipo);
+      });
+    },
+    [handleVisualizacaoChange]
+  );
 
   return (
     <div
@@ -410,7 +255,7 @@ export function ResultsViewer({
       >
         <div className="flex gap-2">
           <button
-            onClick={() => handleVisualizacaoChange("tabela")}
+            onClick={() => handleVisualizacaoChangeWithTransition("tabela")}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               tipoVisualizacao === "tabela"
                 ? "bg-blue-600 text-white shadow-lg"
@@ -420,7 +265,7 @@ export function ResultsViewer({
             Tabela
           </button>
           <button
-            onClick={() => handleVisualizacaoChange("grafico")}
+            onClick={() => handleVisualizacaoChangeWithTransition("grafico")}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               tipoVisualizacao === "grafico"
                 ? "bg-blue-600 text-white shadow-lg"
@@ -432,105 +277,154 @@ export function ResultsViewer({
         </div>
 
         <div data-tour="export-options">
-          <DownloadOptions dados={dados} />
+          <DownloadOptions
+            dados={dados}
+            filteredDados={filteredData}
+            hasActiveFilters={filters.filter((f) => f.value).length > 0}
+          />
         </div>
       </div>
 
       {/* Visualização */}
-      {tipoVisualizacao === "tabela" ? (
-        <>
-          {/* Filtro externo */}
-          <ResultsFilterPanel
-            filterType={filterType}
-            filterValue={filterValue}
-            onFilterTypeChange={setFilterType}
-            onFilterValueChange={setFilterValue}
-            filterOptions={filterOptions}
-            availableYears={anosDisponiveis}
-          />
+      <AnimatePresence mode="wait">
+        {tipoVisualizacao === "tabela" ? (
+          <motion.div
+            key="tabela"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <CompactFilterPanel
+              filters={filters}
+              onAddFilter={handleAddFilter}
+              onRemoveFilter={handleRemoveFilter}
+              onFilterChange={handleFilterChange}
+              availableYears={availableYears}
+              availableOptions={availableFilterOptions}
+              variant="full"
+            />
 
-          {/* Controles da tabela */}
-          <TableControls
-            itemsPerPage={itemsPerPage}
-            onItemsPerPageChange={setItemsPerPage}
-            isCompact={isCompactMode}
-            onCompactToggle={() => setIsCompactMode(!isCompactMode)}
-            totalItems={filteredDados.length}
-          />
+            <FilterSummary
+              totalRecords={dados.length}
+              filteredRecords={filteredData.length}
+              activeFiltersCount={activeFiltersCount}
+            />
 
-          {/* Tabela */}
-          <div className="overflow-x-auto" data-tour="table-view">
-            <Table
-              items={mapDataForTable()}
-              columns={getTableColumns()}
-              keyMap={columnKeyMap}
+            <TableControls
               itemsPerPage={itemsPerPage}
-              tableType="comparacao"
-              hideFilters={true}
+              onItemsPerPageChange={setItemsPerPage}
               isCompact={isCompactMode}
+              onCompactToggle={() => setIsCompactMode(!isCompactMode)}
+              totalItems={filteredData.length}
             />
-          </div>
-        </>
-      ) : (
-        <div data-tour="chart-area">
-          <div data-tour="comparison-selector">
-            <ComparacaoSelector
-              tipoComparacao={tipoComparacao}
-              setTipoComparacao={setTipoComparacao}
-              campoSelecionado={campoComparacao}
-              setCampoSelecionado={setCampoComparacao}
-            />
-          </div>
 
-          {tipoComparacao === "evolucao_anual" && (
-            <div
-              className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md"
-              data-tour="year-filter"
-            >
-              <label className="block text-sm font-medium text-blue-700 mb-1">
-                Filtrar por Ano:
-              </label>
-              <select
-                value={anoSelecionado}
-                onChange={(e) => setAnoSelecionado(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="todos">Todos os Anos</option>
-                {anosDisponiveis.map((ano) => (
-                  <option key={ano} value={ano}>
-                    {ano}
-                  </option>
-                ))}
-              </select>
+            <div className="overflow-x-auto" data-tour="table-view">
+              <Suspense fallback={<LoadingFallback />}>
+                <Table
+                  items={dadosTabela}
+                  columns={TABLE_COLUMNS}
+                  keyMap={COLUMN_KEY_MAP}
+                  itemsPerPage={itemsPerPage}
+                  tableType="comparacao"
+                  hideFilters={true}
+                  isCompact={isCompactMode}
+                />
+              </Suspense>
             </div>
-          )}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="grafico"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            data-tour="chart-area"
+          >
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <CompactFilterPanel
+                filters={filters}
+                onAddFilter={handleAddFilter}
+                onRemoveFilter={handleRemoveFilter}
+                onFilterChange={handleFilterChange}
+                availableYears={availableYears}
+                availableOptions={availableFilterOptions}
+                variant="compact"
+              />
 
-          <div data-tour="chart-type">
-            <ChartSelector
-              tipoGrafico={tipoGrafico}
-              onChange={setTipoGrafico}
-            />
-          </div>
+              {activeFiltersCount > 0 && (
+                <div className="text-sm text-gray-600 flex items-center gap-2">
+                  <span>Visualizando</span>
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 font-bold rounded">
+                    {dadosGrafico.length}
+                  </span>
+                  <span>registros</span>
+                </div>
+              )}
+            </div>
 
-          <h3 className="text-center text-lg font-medium text-gray-800 mb-2">
-            {getCampoLabel(campoComparacao)} -{" "}
-            {getTipoComparacaoLabel(tipoComparacao)}
-            {tipoComparacao === "evolucao_anual" &&
-              anoSelecionado !== "todos" &&
-              ` (Ano ${anoSelecionado})`}
-          </h3>
+            <div data-tour="comparison-selector">
+              <ComparacaoSelector
+                tipoComparacao={tipoComparacao}
+                setTipoComparacao={setTipoComparacao}
+                campoSelecionado={campoComparacao}
+                setCampoSelecionado={setCampoComparacao}
+              />
+            </div>
 
-          <div data-tour="chart-display">
-            <ChartDisplay
-              dados={prepararDadosGrafico()}
-              tipoGrafico={tipoGrafico}
-              chartContext={chartContext}
-              onUniversidadeSelect={setSelectedUniversidadesEvolucao}
-              selectedUniversidades={selectedUniversidadesEvolucao}
-            />
-          </div>
-        </div>
-      )}
+            {tipoComparacao === "evolucao_anual" && (
+              <div
+                className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md"
+                data-tour="year-filter"
+              >
+                <label className="block text-sm font-medium text-blue-700 mb-1">
+                  Filtrar por Ano:
+                </label>
+                <select
+                  value={anoSelecionado}
+                  onChange={(e) => setAnoSelecionado(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="todos">Todos os Anos</option>
+                  {anosDisponiveis.map((ano) => (
+                    <option key={ano} value={ano}>
+                      {ano}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <Suspense fallback={<LoadingFallback />}>
+              <div data-tour="chart-type">
+                <ChartSelector
+                  tipoGrafico={tipoGrafico}
+                  onTipoGraficoChange={setTipoGrafico}
+                />{" "}
+              </div>
+
+              <h3 className="text-center text-lg font-medium text-gray-800 mb-2">
+                {getCampoLabel(campoComparacao)} -{" "}
+                {getTipoComparacaoLabel(tipoComparacao)}
+                {tipoComparacao === "evolucao_anual" &&
+                  anoSelecionado !== "todos" &&
+                  ` (Ano ${anoSelecionado})`}
+              </h3>
+
+              <div data-tour="chart-display">
+                <ChartDisplay
+                  dados={dadosGrafico}
+                  tipoGrafico={tipoGrafico}
+                  chartContext={chartContext}
+                  onUniversidadeSelect={setSelectedUniversidadesEvolucao}
+                  selectedUniversidades={selectedUniversidadesEvolucao}
+                />
+              </div>
+            </Suspense>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Rodapé com informações de correção */}
       {dados.length > 0 && infoCorrecaoBasica && (
@@ -569,13 +463,17 @@ export function ResultsViewer({
         </div>
       )}
 
-      <CorrecaoModal
-        isOpen={modalAberto}
-        onClose={() => setModalAberto(false)}
-        fatoresCorrecao={fatoresCorrecaoPorAno}
-        infoBasica={infoCorrecaoBasica}
-      />
+      {/* Modal de correção */}
+      <Suspense fallback={null}>
+        <CorrecaoModal
+          isOpen={modalAberto}
+          onClose={handleFecharModalCorrecao}
+          fatoresCorrecao={fatoresCorrecaoPorAno}
+          infoBasica={infoCorrecaoBasica}
+        />
+      </Suspense>
 
+      {/* Aviso de anos ausentes */}
       {anosAusentes.length > 0 && (
         <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
           <h3 className="text-md font-semibold text-yellow-800 flex items-center">
@@ -602,14 +500,17 @@ export function ResultsViewer({
       )}
     </div>
   );
-}
+});
 
-function getCampoLabel(campo: CampoComparacao): string {
-  const labels: Record<CampoComparacao, string> = {
+ResultsViewer.displayName = "ResultsViewer";
+
+// Funções auxiliares
+function getCampoLabel(campo: string): string {
+  const labels: Record<string, string> = {
     orcamento_inicial_loa: "Orçamento Inicial (LOA)",
-    valor_empenhado: "Valor Empenhado",
-    valor_liquidado: "Valor Liquidado",
-    valor_pago: "Valor Pago",
+    empenhado_ate_mes: "Empenhado Até Mês",
+    liquidado_ate_mes: "Liquidado Até Mês",
+    pago_ate_mes: "Pago Até Mês",
     empenhado_no_mes: "Empenhado no Mês",
     liquidado_no_mes: "Liquidado no Mês",
     pago_no_mes: "Pago no Mês",
@@ -617,15 +518,12 @@ function getCampoLabel(campo: CampoComparacao): string {
     total_orcamentario_no_mes: "Total Orçamentário No Mês",
     disponibilidade_orcamentaria_ate_mes: "Disp. Orçamentária Até Mês",
     disponibilidade_orcamentaria_no_mes: "Disp. Orçamentária No Mês",
-    empenhado_ate_mes: "Empenhado Até Mês",
-    liquidado_ate_mes: "Liquidado Até Mês",
-    pago_ate_mes: "Pago Até Mês",
   };
   return labels[campo] || campo;
 }
 
-function getTipoComparacaoLabel(tipo: TipoComparacao): string {
-  const labels: Record<TipoComparacao, string> = {
+function getTipoComparacaoLabel(tipo: string): string {
+  const labels: Record<string, string> = {
     universidades: "Comparação entre Universidades",
     anos: "Comparação entre Anos",
     evolucao_anual: "Evolução Anual por Universidade",

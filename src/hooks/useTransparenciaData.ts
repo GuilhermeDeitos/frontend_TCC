@@ -5,6 +5,8 @@ import Swal from "sweetalert2";
 import { useIPCAData } from "./useIPCAData";
 import { processarDadosChunk } from "../utils/processadorDados";
 import { extrairMensagemErro } from "../utils/errorHandlers";
+import { validarELimparDados, removerDuplicatasEntreDoisArrays } from "../utils/dataDeduplication";
+
 
 interface ProgressoConsulta {
   anosProcessados: Set<number>;
@@ -213,6 +215,7 @@ export function useTransparenciaData() {
       const anoInicialNum = parseInt(anoInicial);
       const anoFinalNum = parseInt(anoFinal);
       const totalAnosEsperados = anoFinalNum - anoInicialNum + 1;
+      setDadosConsulta([]);
 
       // Resetar o progresso da consulta
       setProgressoConsulta({

@@ -31,13 +31,32 @@ export function useConsultaResultadosTour() {
         placement: "left" as const,
       },
       {
-        id: "filter-panel",
+        id: "results-filter-panel",
         target: '[data-tour="results-filter-panel"]',
-        title: "🔍 Filtros Avançados",
+        title: "🔍 Filtros Compostos",
         content:
-          "Use estes filtros para refinar os dados exibidos. Você pode filtrar por ano, universidade, função, grupo natureza ou origem de recursos. Os filtros são aplicados instantaneamente!",
+          "Combine múltiplos critérios de filtro para análises mais específicas. Por exemplo, filtre por ano E grupo de natureza ao mesmo tempo!",
         placement: "top" as const,
-        condition: () => !!document.querySelector('[data-tour="results-filter-panel"]'),
+      },
+      {
+        id: "add-filter-button",
+        target: '[data-tour="add-filter-button"]',
+        title: "➕ Adicionar Filtros",
+        content:
+          "Clique aqui para adicionar novos filtros. Você pode ter até 5 filtros ativos simultaneamente, permitindo análises muito precisas.",
+        placement: "left" as const,
+        condition: () =>
+          !!document.querySelector('[data-tour="add-filter-button"]'),
+      },
+      {
+        id: "active-filters",
+        target: '[data-tour="active-filters"]',
+        title: "📋 Filtros Configurados",
+        content:
+          "Cada filtro funciona como uma condição AND. Configure o tipo (o que filtrar) e o valor (qual valor específico). Todos os filtros devem ser satisfeitos para um registro aparecer.",
+        placement: "bottom" as const,
+        condition: () =>
+          !!document.querySelector('[data-tour="active-filters"]'),
       },
       {
         id: "table-controls",
@@ -46,7 +65,8 @@ export function useConsultaResultadosTour() {
         content:
           "Personalize a visualização da tabela: escolha quantos itens exibir por página (10, 25, 50 ou 100) e ative o modo compacto para uma visão mais condensada dos dados.",
         placement: "top" as const,
-        condition: () => !!document.querySelector('[data-tour="table-controls"]'),
+        condition: () =>
+          !!document.querySelector('[data-tour="table-controls"]'),
       },
       {
         id: "compact-mode",
@@ -78,7 +98,8 @@ export function useConsultaResultadosTour() {
         content:
           "Aqui você vê para qual período os valores foram corrigidos. Clique no botão 'Detalhes da Correção' para ver os fatores aplicados a cada ano.",
         placement: "top" as const,
-        condition: () => !!document.querySelector('[data-tour="correcao-footer"]'),
+        condition: () =>
+          !!document.querySelector('[data-tour="correcao-footer"]'),
       },
     ],
     []

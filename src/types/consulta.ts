@@ -66,7 +66,7 @@ export interface ConsultaParams {
   ipca_referencia: string;
 }
 
-export type TipoGrafico = 'barras' | 'linhas' | 'pizza' | 'area';
+export type TipoGrafico = 'barras' | 'linhas' | 'pizza' | 'area' | 'radar';
 export type TipoVisualizacao = 'tabela' | 'grafico';
 
 // Expandindo as opções de campos para comparação

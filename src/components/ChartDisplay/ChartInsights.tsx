@@ -1,21 +1,25 @@
 import { memo } from "react";
 import { formatCurrency } from "../../utils/chartUtils";
-import type { ChartStatistics, ChartContextType } from "../../types/chart";
+import type { ChartStatistics } from "../../types/chart";
 
 interface ChartInsightsProps {
   statistics: ChartStatistics;
-  chartContext: ChartContextType;
+  dados?: any[]; // Opcional, para contexto adicional
 }
 
-export const ChartInsights = memo(({ statistics, chartContext }: ChartInsightsProps) => {
+export const ChartInsights = memo(function ChartInsights({ 
+  statistics,
+  dados 
+}: ChartInsightsProps) {
   if (statistics.quantidade <= 1) return null;
 
-  const showGrowthInsight = (chartContext === 'temporal' || chartContext === 'evolution') && 
-                            statistics.crescimento !== undefined;
+  const showGrowthInsight = statistics.crescimento !== undefined;
+  const diferenca = statistics.max - statistics.min;
+  const variacaoPercentual = (diferenca / statistics.media) * 100;
 
   return (
     <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-4">
-      <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+      <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
         <svg
           className="w-5 h-5 text-blue-600"
           fill="none"
@@ -31,43 +35,58 @@ export const ChartInsights = memo(({ statistics, chartContext }: ChartInsightsPr
         </svg>
         Insights Automáticos
       </h4>
+      
       <div className="space-y-2 text-sm text-gray-700">
-        <p>
-          • A diferença entre o valor máximo e mínimo é de{" "}
-          <strong className="text-blue-700">
-            {formatCurrency(statistics.max - statistics.min)}
-          </strong>
+        <p className="flex items-start gap-2">
+          <span className="text-blue-600 mt-0.5">•</span>
+          <span>
+            A diferença entre o valor máximo e mínimo é de{" "}
+            <strong className="text-blue-700">
+              {formatCurrency(diferenca)}
+            </strong>
+            {" "}({variacaoPercentual.toFixed(1)}% da média)
+          </span>
         </p>
         
         {showGrowthInsight && statistics.crescimento !== undefined && (
-          <p>
-            • {statistics.crescimento > 0 ? "Crescimento" : "Redução"} de{" "}
-            <strong
-              className={statistics.crescimento > 0 ? "text-green-700" : "text-red-700"}
-            >
-              {Math.abs(statistics.crescimento).toFixed(1)}%
-            </strong>{" "}
-            entre o primeiro e último registro
+          <p className="flex items-start gap-2">
+            <span className={statistics.crescimento > 0 ? "text-green-600" : "text-red-600"}>
+              •
+            </span>
+            <span>
+              {statistics.crescimento > 0 ? "Crescimento" : "Redução"} de{" "}
+              <strong
+                className={statistics.crescimento > 0 ? "text-green-700" : "text-red-700"}
+              >
+                {Math.abs(statistics.crescimento).toFixed(1)}%
+              </strong>{" "}
+              entre o primeiro e último registro
+            </span>
           </p>
         )}
         
-        <p>
-          • Valores variam em média{" "}
-          <strong className="text-purple-700">
-            {formatCurrency(statistics.desvioPadrao)}
-          </strong>{" "}
-          em relação à média
+        <p className="flex items-start gap-2">
+          <span className="text-purple-600 mt-0.5">•</span>
+          <span>
+            Valores variam em média{" "}
+            <strong className="text-purple-700">
+              {formatCurrency(statistics.desvioPadrao)}
+            </strong>{" "}
+            em relação à média (
+            {((statistics.desvioPadrao / statistics.media) * 100).toFixed(1)}%)
+          </span>
         </p>
 
-        {chartContext === 'comparison' && (
-          <p>
-            • O valor médio representa{" "}
+        <p className="flex items-start gap-2">
+          <span className="text-indigo-600 mt-0.5">•</span>
+          <span>
+            50% dos valores estão {statistics.mediana > statistics.media ? "acima" : "abaixo"} de{" "}
             <strong className="text-indigo-700">
-              {((statistics.media / statistics.total) * 100).toFixed(1)}%
+              {formatCurrency(statistics.mediana)}
             </strong>{" "}
-            do total
-          </p>
-        )}
+            (mediana)
+          </span>
+        </p>
       </div>
     </div>
   );
