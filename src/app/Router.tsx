@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { LoadingIndicator } from "@shared/components/Feedback/LoadingIndicator";
+import { Loading} from "@shared/components/UI/Loading";
 
 // Lazy load das features
 const ConsultaPage = lazy(() => 
@@ -24,7 +24,7 @@ import {
 export function Router() {
   return (
     <BrowserRouter>
-      <Suspense fallback={<LoadingIndicator />}>
+      <Suspense fallback={<Loading variant="pulse" size="lg" message="Aguarde..." />}>
         <Routes>
           <Route path="/" element={<MainPage />} />
           <Route path="/sobre" element={<AboutPage />} />
