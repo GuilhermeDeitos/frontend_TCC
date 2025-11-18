@@ -62,7 +62,7 @@ export function useMainPageTour() {
     {
       id: 'series-card',
       target: '[data-tour="series-card"]',
-      title: '📊 Série Histórica do IPCA',
+      title: 'Série Histórica do IPCA',
       content: 'Acesse a base de dados completa do IPCA. Consulte o valor do índice para qualquer mês e ano, permitindo análises detalhadas e validação de cálculos financeiros.',
       placement: 'top' as const,
     },

@@ -15,7 +15,7 @@ export function useConsultaPageTour() {
     {
       id: "overview",
       target: '[data-tour="title-section"]',
-      title: "📊 Visão Geral",
+      title: "Visão Geral",
       content:
         "O sistema permite consultas flexíveis por período, com correção monetária automática. Você pode visualizar os resultados em tabelas ou gráficos interativos e exportar em diversos formatos.",
       placement: "bottom" as const,
@@ -31,7 +31,7 @@ export function useConsultaPageTour() {
     {
       id: "tipo-correcao",
       target: '[data-tour="tipo-correcao"]',
-      title: "🔄 Tipo de Correção",
+      title: " Tipo de Correção",
       content:
         "Escolha entre IPCA Mensal (mais preciso) ou IPCA Anual (média do ano). A correção garante que valores de diferentes períodos sejam comparáveis.",
       placement: "right" as const,

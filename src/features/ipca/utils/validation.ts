@@ -1,4 +1,4 @@
-import type{ FormData } from "./types";
+import type{ FormData } from "../types/calculadora";
 
 interface ValidationResult {
   isValid: boolean;

@@ -71,14 +71,14 @@ export function useTour(tourKey: string, steps: TourStep[]) {
 
       // Verificar se já foi iniciado nesta sessão (comportamento normal)
       if (startedThisSession.has(tourKey)) {
-        console.log(`⏭️ Tour ${tourKey} já foi iniciado nesta sessão`);
+        console.log(`Tour ${tourKey} já foi iniciado nesta sessão`);
         return;
       }
 
       // Verificar se já foi completado ou pulado
       if (completedTours.includes(tourKey) || skippedTours.includes(tourKey)) {
         console.log(
-          `⏭️ Tour ${tourKey} já foi completado ou pulado anteriormente`
+          `Tour ${tourKey} já foi completado ou pulado anteriormente`
         );
         return;
       }
@@ -193,7 +193,7 @@ export function useTour(tourKey: string, steps: TourStep[]) {
   const toggleTourStatus = useCallback(
     (targetTourKey: string, shouldBeCompleted: boolean) => {
       console.log(
-        `🔄 Alternando status do tour ${targetTourKey} para ${
+        ` Alternando status do tour ${targetTourKey} para ${
           shouldBeCompleted ? "completo" : "pendente"
         }`
       );

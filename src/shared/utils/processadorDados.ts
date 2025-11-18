@@ -1,4 +1,4 @@
-import type { DadosConsulta } from "../types/consulta";
+import type { DadosConsulta } from "@features/consulta/types/consulta";
 
 /**
  * Converte uma string monetária para número

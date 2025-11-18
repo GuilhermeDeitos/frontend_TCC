@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
-import type { DadosConsulta } from "../../types/consulta";
+import type { DadosConsulta } from "@features/consulta/types/consulta";
 import type{ ColumnOption } from "./types";
 
 interface ExportConfig {

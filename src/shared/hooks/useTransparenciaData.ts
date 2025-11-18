@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { DadosConsulta, ConsultaParams } from "../types/consulta";
+import type { DadosConsulta, ConsultaParams } from "@features/consulta/types/consulta";
 import api from "../utils/api";
 import Swal from "sweetalert2";
 import { useIPCAData } from "./useIPCAData";
 import { processarDadosChunk } from "../utils/processadorDados";
 import { extrairMensagemErro } from "../utils/errorHandlers";
-import { validarELimparDados, removerDuplicatasEntreDoisArrays } from "../utils/dataDeduplication";
 
 
 interface ProgressoConsulta {
@@ -75,7 +74,7 @@ function removerDadosDuplicados(
 
   if (resultadoFinal.length < dadosFiltrados.length) {
     console.log(
-      `⚠️ Removidas ${
+      `Removidas ${
         dadosFiltrados.length - resultadoFinal.length
       } duplicatas internas no conjunto filtrado`
     );
@@ -181,7 +180,7 @@ export function useTransparenciaData() {
           setConsultaAtualId(null);
           try {
             sessionStorage.removeItem("currentConsultaId");
-          } catch {}
+          } catch { /* empty */ }
         })
         .catch((err) => {
           console.error(`Erro ao cancelar explicitamente: ${err}`);
@@ -209,8 +208,8 @@ export function useTransparenciaData() {
       const signal = abortControllerRef.current.signal;
 
       // Extrair anos inicial e final da consulta
-      const [mesInicial, anoInicial] = params.data_inicio.split("/");
-      const [mesFinal, anoFinal] = params.data_fim.split("/");
+      const [_mesInicial, anoInicial] = params.data_inicio.split("/");
+      const [_mesFinal, anoFinal] = params.data_fim.split("/");
 
       const anoInicialNum = parseInt(anoInicial);
       const anoFinalNum = parseInt(anoFinal);
@@ -300,7 +299,7 @@ export function useTransparenciaData() {
                         "currentConsultaId",
                         chunk.id_consulta
                       );
-                    } catch {}
+                    } catch { /* empty */ }
                   }
 
                   if (chunk.status === "iniciando") {
@@ -311,60 +310,7 @@ export function useTransparenciaData() {
                   else if (chunk.status === "parcial") {
                     const anoProcessado = Number(chunk.ano_processado);
 
-                    setProgressoConsulta((prev) => {
-                      const anosProcessados = new Set(prev.anosProcessados);
-                      anosProcessados.add(anoProcessado);
-
-                      // Calcular percentual
-                      const percentual = Math.min(
-                        100,
-                        Math.round(
-                          (anosProcessados.size / totalAnosEsperados) * 100
-                        )
-                      );
-
-                      // IMPORTANTE: Filtrar dados duplicados antes de contabilizar
-                      const dadosUnicos = chunk.dados
-                        ? removerDadosDuplicados(chunk.dados, dadosAcumulados)
-                        : [];
-
-                      const registrosProcessados =
-                        prev.registrosProcessados + dadosUnicos.length;
-
-                      console.log(
-                        `Progresso: ${anosProcessados.size}/${totalAnosEsperados} anos (${percentual}%)`
-                      );
-
-                      // VERIFICAR SE TODOS OS ANOS FORAM PROCESSADOS
-                      if (anosProcessados.size >= totalAnosEsperados) {
-                        console.log(
-                          "🎉 Todos os anos processados! Finalizando consulta automaticamente."
-                        );
-                        consultaConcluida = true;
-
-                        // Finalizar imediatamente
-                        setTimeout(() => {
-                          setIsLoading(false);
-                          setLoadingMessage("");
-                        }, 100);
-                      }
-
-                      return {
-                        ...prev,
-                        anosProcessados,
-                        percentual:
-                          anosProcessados.size >= totalAnosEsperados
-                            ? 100
-                            : percentual,
-                        registrosProcessados,
-                        totalRegistros:
-                          chunk.total_estimado || registrosProcessados,
-                      };
-                    });
-
-                    setLoadingMessage(`Processando ano ${anoProcessado}...`);
-
-                    // Processar dados parciais evitando duplicatas
+                    // 1. PRIMEIRO processar os dados
                     if (chunk.dados && chunk.dados.length > 0) {
                       const dadosFiltrados = removerDadosDuplicados(
                         chunk.dados,
@@ -377,12 +323,49 @@ export function useTransparenciaData() {
                         );
                         dadosAcumulados = [...dadosAcumulados, ...novosDados];
                         setDadosConsulta([...dadosAcumulados]);
+                        console.log(
+                          `Ano ${anoProcessado}: ${novosDados.length} registros adicionados`
+                        );
                       } else {
                         console.log(
-                          "Todos os dados recebidos são duplicatas, nenhum dado adicionado"
+                          `Ano ${anoProcessado}: Todos os dados são duplicatas`
                         );
                       }
                     }
+
+                    // 2. DEPOIS atualizar o progresso (SEM finalizar automaticamente)
+                    setProgressoConsulta((prev) => {
+                      const anosProcessados = new Set(prev.anosProcessados);
+                      anosProcessados.add(anoProcessado);
+
+                      const percentual = Math.min(
+                        100,
+                        Math.round(
+                          (anosProcessados.size / totalAnosEsperados) * 100
+                        )
+                      );
+
+                      const registrosProcessados = dadosAcumulados.length;
+
+                      console.log(
+                        `Progresso: ${anosProcessados.size}/${totalAnosEsperados} anos (${percentual}%) - ${registrosProcessados} registros`
+                      );
+
+                      return {
+                        ...prev,
+                        anosProcessados,
+                        percentual,
+                        registrosProcessados,
+                        totalRegistros:
+                          chunk.total_estimado || registrosProcessados,
+                      };
+                    });
+
+                    setLoadingMessage(
+                      `Processando ano ${anoProcessado}... (${
+                        progressoConsulta.anosProcessados.size + 1
+                      }/${totalAnosEsperados})`
+                    );
                   }
 
                   // Substitua também o código que trata os eventos completos (por volta da linha 260)
@@ -481,16 +464,16 @@ export function useTransparenciaData() {
             anosProcessadosAtual >= totalAnosEsperados;
 
           console.log(
-            `✅ Verificação final: ${anosProcessadosAtual}/${totalAnosEsperados} anos processados`
+            `Verificação final: ${anosProcessadosAtual}/${totalAnosEsperados} anos processados`
           );
           console.log(
-            `✅ Consulta marcada como completa: ${consultaConcluida}`
+            `Consulta marcada como completa: ${consultaConcluida}`
           );
-          console.log(`✅ Todos os anos processados: ${todosAnosProcessados}`);
+          console.log(`Todos os anos processados: ${todosAnosProcessados}`);
 
           // SEMPRE finalizar se todos os anos foram processados
           if (todosAnosProcessados) {
-            console.log("🎯 Finalizando consulta - todos os anos processados");
+            console.log("Finalizando consulta - todos os anos processados");
             setIsLoading(false);
             setLoadingMessage("");
             return { ...prev, percentual: 100 };

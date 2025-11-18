@@ -6,7 +6,7 @@ export function useSeriesIPCATour() {
     {
       id: 'welcome',
       target: 'body',
-      title: '📊 Bem-vindo à Série Histórica do IPCA!',
+      title: 'Bem-vindo à Série Histórica do IPCA!',
       content: 'Aqui você pode consultar todos os valores históricos do IPCA (Índice Nacional de Preços ao Consumidor Amplo) desde dezembro de 1979. Esta é a base de dados oficial usada para todas as correções monetárias do sistema.',
       placement: 'bottom' as const,
     },
@@ -44,7 +44,7 @@ export function useSeriesIPCATour() {
     {
       id: 'sort-feature',
       target: '[data-tour="table-header"]',
-      title: '🔄 Ordenação',
+      title: ' Ordenação',
       content: 'Clique em qualquer cabeçalho de coluna para ordenar os dados. Uma seta verde indica ordenação crescente, e uma seta vermelha indica decrescente. Clique novamente para inverter a ordem.',
       placement: 'bottom' as const,
       condition: () => !!document.querySelector('[data-tour="table-header"]'),
@@ -52,7 +52,7 @@ export function useSeriesIPCATour() {
     {
       id: 'table-data',
       target: '[data-tour="table-data"]',
-      title: '📊 Dados do IPCA',
+      title: 'Dados do IPCA',
       content: 'Cada linha representa um mês específico com seu respectivo índice IPCA. Estes valores são usados pela Calculadora de Correção Monetária para atualizar valores históricos.',
       placement: 'top' as const,
       condition: () => !!document.querySelector('[data-tour="table-data"]'),

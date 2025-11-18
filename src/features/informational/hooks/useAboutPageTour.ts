@@ -69,7 +69,7 @@ export function useAboutPageTour() {
     {
       id: 'processing-step',
       target: '[data-tour="processing-step"]',
-      title: '🔄 Processamento e Correção',
+      title: ' Processamento e Correção',
       content: 'Os dados extraídos são limpos, organizados e corrigidos automaticamente pelo IPCA, garantindo comparações justas entre diferentes períodos.',
       placement: 'top' as const,
     },

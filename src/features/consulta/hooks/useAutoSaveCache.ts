@@ -34,7 +34,7 @@ export function useAutoSaveCache({
         ipca_referencia: parametrosOriginais?.ipcaReferencia || "atual",
       };
 
-      console.log("💾 Salvando consulta COMPLETA no cache...", {
+      console.log("Salvando consulta COMPLETA no cache...", {
         registros: dadosConsulta.length,
         params,
       });

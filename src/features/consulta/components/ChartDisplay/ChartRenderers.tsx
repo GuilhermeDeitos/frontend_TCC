@@ -200,7 +200,7 @@ export const BarChart = memo(function BarChart({
           animationDuration={enableAnimations ? 500 : 0}
           animationEasing="ease-out"
         >
-          {chartData.map((entry, index) => (
+          {chartData.map((_, index) => (
             <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
           ))}
         </Bar>
@@ -329,7 +329,7 @@ export const PieChart = memo(function PieChart({
             animationDuration={enableAnimations ? 500 : 0}
             animationEasing="ease-out"
           >
-            {chartData.map((entry, index) => (
+            {chartData.map((_, index) => (
               <Cell 
                 key={`cell-${index}`} 
                 fill={colors[index % colors.length]}

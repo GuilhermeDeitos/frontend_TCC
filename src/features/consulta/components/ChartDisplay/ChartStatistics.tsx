@@ -5,12 +5,10 @@ import type { ChartStatistics } from "../../types/chart";
 
 interface ChartStatisticsDisplayProps {
   statistics: ChartStatistics;
-  totalRecords?: number;
 }
 
 export const ChartStatisticsDisplay = memo(function ChartStatisticsDisplay({ 
-  statistics, 
-  totalRecords 
+  statistics,
 }: ChartStatisticsDisplayProps) {
   const showGrowth = statistics.crescimento !== undefined;
 

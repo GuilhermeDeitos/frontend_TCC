@@ -158,7 +158,7 @@ export function ConsultaPage() {
   });
 
   // Hook de restauração de cache
-  const { cacheJaRestaurado, setCacheJaRestaurado } = useCacheRestoration({
+  const { setCacheJaRestaurado } = useCacheRestoration({
     consultaAtual,
     cacheEstaValido,
     isLoading,

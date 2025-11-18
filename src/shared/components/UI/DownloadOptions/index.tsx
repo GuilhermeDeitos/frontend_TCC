@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ExportDialog } from "../ExportDialog";
-import type { DadosConsulta } from "../../types/consulta";
+import type { DadosConsulta } from "@features/consulta/types/consulta";
 
 interface DownloadOptionsProps {
   dados: DadosConsulta[];

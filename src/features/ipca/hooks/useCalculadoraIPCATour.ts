@@ -13,7 +13,7 @@ export function useCalculadoraIPCATour() {
     {
       id: 'title-section',
       target: '[data-tour="title-section"]',
-      title: '📊 Calculadora de Correção Monetária',
+      title: 'Calculadora de Correção Monetária',
       content: 'Esta calculadora utiliza os índices oficiais do IPCA (Índice Nacional de Preços ao Consumidor Amplo) do IBGE para corrigir valores monetários entre dezembro de 1979 e dois meses antes da data atual.',
       placement: 'bottom' as const,
     },
@@ -91,7 +91,7 @@ export function useCalculadoraIPCATour() {
     {
       id: 'restrictions',
       target: 'body',
-      title: '⚠️ Restrições Importantes',
+      title: 'Restrições Importantes',
       content: 'Atenção: 1) Para 1979, apenas dezembro está disponível; 2) O IPCA mais recente disponível é de dois meses atrás (devido ao delay de divulgação oficial); 3) Todos os valores devem ser positivos.',
       placement: 'bottom' as const,
     },

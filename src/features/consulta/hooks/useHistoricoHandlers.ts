@@ -61,8 +61,8 @@ export function useHistoricoHandlers({
           showConfirmButton: false,
         });
 
-        const [mesIni, anoIni] = metadata.params.data_inicio.split("/");
-        const [mesFim, anoFim] = metadata.params.data_fim.split("/");
+        const anoIni = metadata.params.data_inicio.split("/")[1];
+        const anoFim = metadata.params.data_fim.split("/")[1];
 
         setParametrosConsulta({
           anoInicial: parseInt(anoIni),

@@ -25,7 +25,7 @@ export function useConsultaResultadosTour() {
       {
         id: "export-options",
         target: '[data-tour="export-options"]',
-        title: "💾 Exportar Dados",
+        title: "Exportar Dados",
         content:
           "Exporte os resultados em diversos formatos: Excel (XLSX), PDF, CSV ou JSON. Personalize colunas, título e outras configurações antes de exportar.",
         placement: "left" as const,
@@ -80,7 +80,7 @@ export function useConsultaResultadosTour() {
       {
         id: "table-view",
         target: '[data-tour="table-view"]',
-        title: "📊 Tabela de Dados",
+        title: "Tabela de Dados",
         content:
           "A tabela mostra todos os detalhes dos dados consultados. Você pode ordenar clicando nos cabeçalhos das colunas.",
         placement: "top" as const,

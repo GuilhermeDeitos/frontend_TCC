@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import type { DadosConsulta } from "../../types/consulta";
+import type { DadosConsulta } from "@features/consulta/types/consulta";
 import { FormatSelector } from "./FormatSelector";
 import { ColumnSelector } from "./ColumnSelector";
 import { GeneralSettings } from "./GeneralSettings";

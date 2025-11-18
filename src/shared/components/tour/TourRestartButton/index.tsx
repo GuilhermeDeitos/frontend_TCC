@@ -49,7 +49,7 @@ export function TourRestartButton({
   const tourNames: Record<string, string> = {
     mainPage: "🏠 Tour da Página Principal",
     calculadoraIPCA: "🧮 Tour da Calculadora IPCA",
-    seriesIPCA: "📊 Tour das Séries IPCA",
+    seriesIPCA: "Tour das Séries IPCA",
     consulta_intro: "🔍 Tour da Consulta - Introdução",
     consulta_resultados: "📋 Tour dos Resultados",
     consulta_graficos: "📈 Tour dos Gráficos",

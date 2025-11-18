@@ -41,7 +41,7 @@ export function useHelpPageTour() {
     {
       id: 'category-data',
       target: '[data-tour="category-data"]',
-      title: '📊 Entendendo os Dados',
+      title: 'Entendendo os Dados',
       content: 'Seção fundamental para compreender conceitos como correção pelo IPCA, termos financeiros (Empenhado, Liquidado, Pago) e como interpretar os resultados do sistema.',
       placement: 'top' as const,
     },

@@ -16,7 +16,7 @@ export function useConsultaGraficosTour() {
     {
       id: "comparison-selector",
       target: '[data-tour="comparison-selector"]',
-      title: "🔄 Opções de Comparação",
+      title: " Opções de Comparação",
       content:
         "Escolha o que deseja comparar: universidades entre si, diferentes anos, ou a evolução anual de cada instituição. Também selecione qual campo financeiro analisar.",
       placement: "bottom" as const,
@@ -24,9 +24,9 @@ export function useConsultaGraficosTour() {
     {
       id: "chart-type-selector",
       target: '[data-tour="chart-type-selector"]',
-      title: "📊 Tipo de Gráfico",
+      title: "Tipo de Gráfico",
       content:
-        "Escolha entre gráficos de Barras, Linhas, Pizza ou Área. Cada tipo é mais adequado para diferentes análises:\n• 📊 Barras: Comparação direta\n• 📈 Linhas: Tendências temporais\n• 🥧 Pizza: Proporções\n• 📉 Área: Volumes acumulados",
+        "Escolha entre gráficos de Barras, Linhas, Pizza ou Área. Cada tipo é mais adequado para diferentes análises:\n• Barras: Comparação direta\n• 📈 Linhas: Tendências temporais\n• 🥧 Pizza: Proporções\n• 📉 Área: Volumes acumulados",
       placement: "bottom" as const,
     },
     {
@@ -34,7 +34,7 @@ export function useConsultaGraficosTour() {
       target: '[data-tour="chart-controls-toggle"]',
       title: "🎛️ Controles de Personalização",
       content:
-        "Clique aqui para abrir/fechar o painel de controles avançados do gráfico. Aqui você pode:\n• 🎨 Mudar paleta de cores\n• 📊 Mostrar estatísticas e insights\n• 📏 Adicionar linha de média\n• ↕️ Ordenar dados\n• 🎬 Controlar animações\n\nOs indicadores mostram quais personalizações estão ativas.",
+        "Clique aqui para abrir/fechar o painel de controles avançados do gráfico. Aqui você pode:\n• 🎨 Mudar paleta de cores\n• Mostrar estatísticas e insights\n• 📏 Adicionar linha de média\n• ↕️ Ordenar dados\n• 🎬 Controlar animações\n\nOs indicadores mostram quais personalizações estão ativas.",
       placement: "bottom" as const,
     },
     {
@@ -65,7 +65,7 @@ export function useConsultaGraficosTour() {
     {
       id: "chart-statistics",
       target: '[data-tour="chart-statistics"]',
-      title: "📊 Estatísticas Detalhadas",
+      title: "Estatísticas Detalhadas",
       content:
         "Visualize métricas importantes dos seus dados:\n• Total e Média\n• Máximo e Mínimo\n• Mediana e Desvio Padrão\n• Crescimento (para séries temporais)\n• Quantidade de registros\n\nAtive através do painel de controles na aba 'Visualização'.",
       placement: "bottom" as const,
@@ -76,7 +76,7 @@ export function useConsultaGraficosTour() {
       target: '[data-tour="chart-canvas"]',
       title: "📈 Área Interativa do Gráfico",
       content:
-        "Este é o gráfico com seus dados. Recursos disponíveis:\n• 🖱️ Passe o mouse sobre elementos para ver detalhes\n• 🔍 Use o zoom (barra inferior) para focar em intervalos\n• 👆 Clique na legenda para filtrar dados\n• 💾 Exporte em alta qualidade (PNG, SVG)\n\nOs nomes completos aparecem ao passar o mouse!",
+        "Este é o gráfico com seus dados. Recursos disponíveis:\n• 🖱️ Passe o mouse sobre elementos para ver detalhes\n• 🔍 Use o zoom (barra inferior) para focar em intervalos\n• 👆 Clique na legenda para filtrar dados\n• Exporte em alta qualidade (PNG, SVG)\n\nOs nomes completos aparecem ao passar o mouse!",
       placement: "top" as const,
     },
     {
@@ -126,16 +126,16 @@ export function useConsultaGraficosTour() {
       
       if (checkElements()) {
         hasStartedRef.current = true;
-        console.log("✅ Todos os elementos do tour de gráficos encontrados, iniciando...");
+        console.log("Todos os elementos do tour de gráficos encontrados, iniciando...");
         
         setTimeout(() => {
           tour.startTour(true);
         }, 500);
       } else if (attempts < maxAttempts) {
-        console.log(`⏳ Aguardando elementos do tour de gráficos... (tentativa ${attempts}/${maxAttempts})`);
+        console.log(`Aguardando elementos do tour de gráficos... (tentativa ${attempts}/${maxAttempts})`);
         setTimeout(tryStartTour, 800);
       } else {
-        console.log("⚠️ Timeout ao aguardar elementos do tour de gráficos");
+        console.log("Timeout ao aguardar elementos do tour de gráficos");
       }
     };
 
@@ -143,7 +143,7 @@ export function useConsultaGraficosTour() {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting && !hasStartedRef.current) {
-          console.log("👁️ Chart area visível, verificando elementos...");
+          console.log("Chart area visível, verificando elementos...");
           tryStartTour();
           observer.disconnect();
         }

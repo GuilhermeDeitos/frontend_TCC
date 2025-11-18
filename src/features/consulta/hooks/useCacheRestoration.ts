@@ -30,21 +30,21 @@ export function useCacheRestoration({
       return;
     }
 
-    console.log("🔄 Restaurando cache...");
+    console.log(" Restaurando cache...");
 
     try {
       const dadosCache = consultaAtual.dados;
 
       if (!dadosCache || dadosCache.length === 0) {
-        console.warn("⚠️ Cache sem dados, limpando...");
+        console.warn("Cache sem dados, limpando...");
         limparCache();
         return;
       }
 
       console.log(`✓ Cache válido com ${dadosCache.length} registros`);
 
-      const [mesIni, anoIni] = consultaAtual.params.data_inicio.split("/");
-      const [mesFim, anoFim] = consultaAtual.params.data_fim.split("/");
+      const anoIni = consultaAtual.params.data_inicio.split("/")[1];
+      const anoFim = consultaAtual.params.data_fim.split("/")[1];
 
       setParametrosConsulta({
         anoInicial: parseInt(anoIni),
@@ -55,7 +55,7 @@ export function useCacheRestoration({
         setParametrosOriginais(consultaAtual.paramsOriginais);
       }
 
-      console.log("📊 Setando dados da consulta...");
+      console.log("Setando dados da consulta...");
       setDadosConsulta(dadosCache);
 
       setCacheJaRestaurado(true);
@@ -81,9 +81,9 @@ export function useCacheRestoration({
         });
       }, 300);
 
-      console.log("✅ Cache restaurado com sucesso!");
+      console.log("Cache restaurado com sucesso!");
     } catch (error) {
-      console.error("❌ Erro ao restaurar:", error);
+      console.error("Erro ao restaurar:", error);
       limparCache();
       setCacheJaRestaurado(false);
     }

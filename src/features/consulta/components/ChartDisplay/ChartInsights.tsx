@@ -4,12 +4,11 @@ import type { ChartStatistics } from "../../types/chart";
 
 interface ChartInsightsProps {
   statistics: ChartStatistics;
-  dados?: any[]; // Opcional, para contexto adicional
 }
 
 export const ChartInsights = memo(function ChartInsights({ 
   statistics,
-  dados 
+   
 }: ChartInsightsProps) {
   if (statistics.quantidade <= 1) return null;
 

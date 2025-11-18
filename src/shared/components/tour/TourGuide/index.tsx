@@ -97,9 +97,7 @@ export function TourGuide({
     setElementNotFound(false);
 
     const isMobile = window.innerWidth < 768;
-    const dialogWidth = isMobile
-      ? Math.min(window.innerWidth - 32, 350)
-      : 400;
+
     const dialogHeight = isMobile ? 320 : 380;
 
     const centerTop = (window.innerHeight - dialogHeight) / 2;
@@ -216,7 +214,7 @@ export function TourGuide({
 
     // Se o dialog vai ultrapassar o limite superior
     if (top < minAllowedTop) {
-      console.log(`📏 Dialog muito acima (${top}px), ajustando para ${minAllowedTop}px`);
+      console.log(`Dialog muito acima (${top}px), ajustando para ${minAllowedTop}px`);
       
       // Tentar posicionar abaixo do elemento
       const belowPosition = rect.bottom + 20;
@@ -224,21 +222,21 @@ export function TourGuide({
       if (belowPosition + dialogHeight <= maxAllowedTop) {
         // Cabe abaixo do elemento
         top = belowPosition;
-        console.log(`✅ Posicionando abaixo do elemento em ${top}px`);
+        console.log(`Posicionando abaixo do elemento em ${top}px`);
       } else if (rect.top - dialogHeight - 30 >= minAllowedTop) {
         // Cabe acima do elemento
         top = rect.top - dialogHeight - 30;
-        console.log(`✅ Posicionando acima do elemento em ${top}px`);
+        console.log(`Posicionando acima do elemento em ${top}px`);
       } else {
         // Não cabe em nenhum lugar ideal, centralizar verticalmente
         top = Math.max(minAllowedTop, (availableHeight - dialogHeight) / 2);
-        console.log(`⚠️ Centralizando verticalmente em ${top}px`);
+        console.log(`Centralizando verticalmente em ${top}px`);
       }
     }
     
     // Se o dialog vai ultrapassar o limite inferior
     if (top + dialogHeight > maxAllowedTop) {
-      console.log(`📏 Dialog muito abaixo (${top + dialogHeight}px > ${maxAllowedTop}px), ajustando`);
+      console.log(`Dialog muito abaixo (${top + dialogHeight}px > ${maxAllowedTop}px), ajustando`);
       
       // Tentar posicionar acima do elemento
       const abovePosition = rect.top - dialogHeight - 30;
@@ -246,22 +244,22 @@ export function TourGuide({
       if (abovePosition >= minAllowedTop) {
         // Cabe acima do elemento
         top = abovePosition;
-        console.log(`✅ Posicionando acima do elemento em ${top}px`);
+        console.log(`Posicionando acima do elemento em ${top}px`);
       } else if (rect.bottom + 20 + dialogHeight <= maxAllowedTop) {
         // Cabe abaixo do elemento
         top = rect.bottom + 20;
-        console.log(`✅ Posicionando abaixo do elemento em ${top}px`);
+        console.log(`Posicionando abaixo do elemento em ${top}px`);
       } else {
         // Não cabe em nenhum lugar ideal, ajustar para o limite máximo
         top = maxAllowedTop;
-        console.log(`⚠️ Ajustando para limite máximo em ${top}px`);
+        console.log(`Ajustando para limite máximo em ${top}px`);
       }
     }
 
     // Garantia final: forçar dentro dos limites
     top = Math.max(minAllowedTop, Math.min(top, maxAllowedTop));
     
-    console.log(`📍 Posição final do dialog: top=${top}px (min=${minAllowedTop}, max=${maxAllowedTop})`);
+    console.log(`Posição final do dialog: top=${top}px (min=${minAllowedTop}, max=${maxAllowedTop})`);
 
     setDialogPosition({ top, left });
 
@@ -272,7 +270,6 @@ export function TourGuide({
 
     // Verificar se o elemento está visível com o dialog posicionado
     const dialogBottomInViewport = top + dialogHeight;
-    const elementBottomInViewport = rect.bottom;
 
     if (isFinalizationBtn) {
       scrollTarget = elementTop - availableHeight / 2 + rect.height / 2;
@@ -288,7 +285,7 @@ export function TourGuide({
     if (dialogBottomInViewport > availableHeight) {
       const adjustment = dialogBottomInViewport - availableHeight + 50;
       scrollTarget += adjustment;
-      console.log(`📜 Ajustando scroll em +${adjustment}px para mostrar dialog completo`);
+      console.log(`Ajustando scroll em +${adjustment}px para mostrar dialog completo`);
     }
 
     const currentScroll = window.pageYOffset;
@@ -296,7 +293,7 @@ export function TourGuide({
     const distance = Math.abs(targetScroll - currentScroll);
 
     if (distance > 50) {
-      console.log(`📜 Fazendo scroll de ${currentScroll}px para ${targetScroll}px (distância: ${distance}px)`);
+      console.log(`Fazendo scroll de ${currentScroll}px para ${targetScroll}px (distância: ${distance}px)`);
       window.scrollTo({
         top: targetScroll,
         behavior: "smooth",

@@ -14,4 +14,20 @@ export default defineConfig({
       '@app': fileURLToPath(new URL('./src/app', import.meta.url)),
     },
   },
+  esbuild: {
+    drop: ['console', 'debugger'], // Remove TODOS os console.* e debugger
+    pure: ['console.log', 'console.debug'], // Ou específico
+  },
+  
+  build: {
+    minify: 'esbuild',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'chart-vendor': ['recharts'],
+        },
+      },
+    },
+  },
 })

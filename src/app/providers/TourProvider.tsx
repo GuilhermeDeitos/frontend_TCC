@@ -48,7 +48,7 @@ export const TourProvider: React.FC<TourProviderProps> = ({ children }) => {
   };
 
   const startTour = (tourId: string) => {
-    console.log(`🎯 Iniciando tour: ${tourId}`);
+    console.log(`Iniciando tour: ${tourId}`);
     
     // Atualizar estado local
     setTours(prevTours => {
@@ -70,7 +70,7 @@ export const TourProvider: React.FC<TourProviderProps> = ({ children }) => {
   };
 
   const restartTour = (tourId: string) => {
-    console.log(`🔄 Reiniciando tour: ${tourId}`);
+    console.log(`Reiniciando tour: ${tourId}`);
     
     try {
       // Remover do localStorage
@@ -92,7 +92,7 @@ export const TourProvider: React.FC<TourProviderProps> = ({ children }) => {
   };
 
   const completeTour = (tourId: string) => {
-    console.log(`✅ Completando tour: ${tourId}`);
+    console.log(`Completando tour: ${tourId}`);
     
     try {
       // Salvar no localStorage

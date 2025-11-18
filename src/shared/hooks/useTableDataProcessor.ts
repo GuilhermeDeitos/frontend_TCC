@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { DadosConsulta } from "../types/consulta";
+import type { DadosConsulta } from "@features/consulta/types/consulta";
 import { corrigirValoresInvertidos } from "../utils/dataMappers";
 
 interface UseTableDataProcessorProps {

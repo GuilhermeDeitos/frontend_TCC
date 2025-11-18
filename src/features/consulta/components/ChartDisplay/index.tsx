@@ -1,4 +1,4 @@
-import { memo, lazy, Suspense, useMemo, startTransition, useState } from "react";
+import { memo, lazy, Suspense, useMemo, startTransition, useState, useRef } from "react";
 import type { DadoGrafico, TipoGrafico } from "../../types/consulta";
 import type { ChartContextType, PaletteKey } from "../../types/chart";
 import { motion, AnimatePresence } from "framer-motion";
@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChartControls } from "./ChartControls";
 import { ChartStatisticsDisplay } from "./ChartStatistics";
 import { ChartInsights } from "./ChartInsights";
+import { ChartExport } from "../ChartExport"; //  Adicionar import
 
 // Lazy load dos componentes pesados de gráficos
 const BarChart = lazy(() => 
@@ -70,10 +71,13 @@ export const ChartDisplay = memo(function ChartDisplay({
   selectedUniversidades = [],
 }: ChartDisplayProps) {
   
+  //  Ref para capturar o container do gráfico
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  
   // Estado para controlar expansão dos controles
   const [isControlsExpanded, setIsControlsExpanded] = useState(false);
   
-  // Hook de controles com ordenação (começar sem insights)
+  // Hook de controles com ordenação
   const { controls, sortedData, average, updateControl, resetControls } = useChartControls({
     dados,
   });
@@ -142,6 +146,13 @@ export const ChartDisplay = memo(function ChartDisplay({
     }
   }, [tipoGrafico, isEvolutionChart]);
 
+  //  Gerar nome do arquivo baseado no contexto
+  const getFileName = () => {
+    const timestamp = new Date().toISOString().split('T')[0];
+    const chartTypeName = tipoGrafico.charAt(0).toUpperCase() + tipoGrafico.slice(1);
+    return `grafico_${chartTypeName}_${timestamp}`;
+  };
+
   if (dados.length === 0) {
     return (
       <div className="text-center py-12 bg-gray-50 rounded-lg">
@@ -168,68 +179,81 @@ export const ChartDisplay = memo(function ChartDisplay({
 
   return (
     <div className="space-y-4">
-      {/* Botão para expandir/colapsar controles */}
-      <div data-tour="chart-controls-toggle">
-        <button
-          onClick={() => setIsControlsExpanded(!isControlsExpanded)}
-          className="w-full flex items-center justify-between px-4 py-3 bg-purple-600 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 group cursor-pointer"
-        >
-          <span className="flex items-center gap-2 font-medium">
-            <svg 
-              className="w-5 h-5" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
+      {/*  Header com botão de exportação */}
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          {/* Botão para expandir/colapsar controles */}
+          <div data-tour="chart-controls-toggle">
+            <button
+              onClick={() => setIsControlsExpanded(!isControlsExpanded)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-purple-600 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 group cursor-pointer"
             >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" 
-              />
-            </svg>
-            {isControlsExpanded ? "Ocultar" : "Mostrar"} Controles de Personalização
-          </span>
-          
-          <div className="flex items-center gap-3">
-            {/* Indicadores de configurações ativas */}
-            {!isControlsExpanded && (
-              <div className="flex items-center gap-2 text-xs">
-                {controls.selectedPalette !== "default" && (
-                  <span className="px-2 py-1 bg-white/20 rounded-md">
-                    {controls.selectedPalette}
-                  </span>
+              <span className="flex items-center gap-2 font-medium">
+                <svg 
+                  className="w-5 h-5" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" 
+                  />
+                </svg>
+                {isControlsExpanded ? "Ocultar" : "Mostrar"} Controles de Personalização
+              </span>
+              
+              <div className="flex items-center gap-3">
+                {/* Indicadores de configurações ativas */}
+                {!isControlsExpanded && (
+                  <div className="flex items-center gap-2 text-xs">
+                    {controls.selectedPalette !== "default" && (
+                      <span className="px-2 py-1 bg-white/20 rounded-md">
+                        {controls.selectedPalette}
+                      </span>
+                    )}
+                    {controls.sortOrder !== "original" && (
+                      <span className="px-2 py-1 bg-white/20 rounded-md">
+                      {controls.sortOrder}
+                      </span>
+                    )}
+                    {controls.showAverage && (
+                      <span className="px-2 py-1 bg-white/20 rounded-md">
+                        média
+                      </span>
+                    )}
+                  </div>
                 )}
-                {controls.sortOrder !== "original" && (
-                  <span className="px-2 py-1 bg-white/20 rounded-md">
-                  {controls.sortOrder}
-                  </span>
-                )}
-                {controls.showAverage && (
-                  <span className="px-2 py-1 bg-white/20 rounded-md">
-                    média
-                  </span>
-                )}
+                
+                <motion.svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  animate={{ rotate: isControlsExpanded ? 180 : 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </motion.svg>
               </div>
-            )}
-            
-            <motion.svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              animate={{ rotate: isControlsExpanded ? 180 : 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </motion.svg>
+            </button>
           </div>
-        </button>
+        </div>
+
+        {/*  Botão de exportação flutuante */}
+        <div className="ml-4" data-tour="chart-export">
+          <ChartExport 
+            targetRef={chartContainerRef}
+            fileName={getFileName()}
+          />
+        </div>
       </div>
 
       {/* Controles com abas (colapsável) */}
@@ -370,7 +394,6 @@ export const ChartDisplay = memo(function ChartDisplay({
       {controls.showStatistics && (
         <ChartStatisticsDisplay
           statistics={statistics}
-          totalRecords={dados.length}
         />
       )}
 
@@ -378,12 +401,12 @@ export const ChartDisplay = memo(function ChartDisplay({
       {controls.showInsights && (
         <ChartInsights
           statistics={statistics}
-          dados={sortedData}
         />
       )}
 
-      {/* Gráfico */}
+      {/*  Gráfico com ref para exportação */}
       <div 
+        ref={chartContainerRef}
         className="bg-white p-6 rounded-lg shadow-md border border-gray-200"
         data-tour="chart-canvas"
       >
