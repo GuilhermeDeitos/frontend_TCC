@@ -24,7 +24,7 @@ import {
 export function Router() {
   return (
     <BrowserRouter>
-      <Suspense fallback={<Loading variant="pulse" size="lg" message="Aguarde..." />}>
+      <Suspense fallback={<Loading variant="pulse" size="lg" message="Carregando página..." fullScreen />}>
         <Routes>
           <Route path="/" element={<MainPage />} />
           <Route path="/sobre" element={<AboutPage />} />
