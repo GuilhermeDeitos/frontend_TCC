@@ -44,9 +44,6 @@ export const OfflineBanner = memo(({
                       {historicoCount === 1 ? "configuração salva" : "configurações salvas"}{" "}
                       no histórico
                     </p>
-                    <p className="text-xs text-blue-700">
-                      Você pode reexecutar consultas anteriores mesmo com a API offline
-                    </p>
                   </div>
                 )}
 
