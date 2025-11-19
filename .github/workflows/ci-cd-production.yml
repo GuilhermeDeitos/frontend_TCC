@@ -79,6 +79,6 @@ jobs:
         run: |
           cd ~/tcc-deploy
           echo "Atualizando Frontend..."
-          docker compose pull ${{ env.SERVICE_NAME }}
-          docker compose up -d --no-deps ${{ env.SERVICE_NAME }}
+          docker-compose pull ${{ env.SERVICE_NAME }}
+          docker-compose up -d --no-deps ${{ env.SERVICE_NAME }}
           docker image prune -f
