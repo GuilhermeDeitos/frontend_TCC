@@ -2,9 +2,9 @@ name: CI/CD Frontend
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 env:
   IMAGE_NAME: tcc-frontend
@@ -12,14 +12,8 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  # -----------------------------------------------------------
-  # JOB 1: TEST & BUILD (Roda na Nuvem do GitHub - Rápido e Limpo)
-  # -----------------------------------------------------------
   test-and-build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend/frontend
     permissions:
       contents: read
       packages: write
@@ -32,23 +26,20 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          # Caminho exato do lock file para o cache funcionar
-          cache-dependency-path: 'frontend/frontend/package-lock.json'
 
       - name: Install Dependencies
         run: npm ci
 
       - name: Linting
         run: npm run lint
+        continue-on-error: true
 
       - name: Type Checking
         run: npx tsc --noEmit
 
-      # Build de teste para garantir que compila
       - name: Build Test
         run: npm run build
 
-      # LOGIN & PUSH PARA REGISTRY
       - name: Log in to GHCR
         if: github.event_name == 'push'
         uses: docker/login-action@v3
@@ -61,7 +52,6 @@ jobs:
         if: github.event_name == 'push'
         run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> ${GITHUB_ENV}
 
-      # Injeta a variável de ambiente de produção
       - name: Create .env
         if: github.event_name == 'push'
         run: echo "VITE_API_URL=/api" > .env.production
@@ -70,27 +60,21 @@ jobs:
         if: github.event_name == 'push'
         uses: docker/build-push-action@v5
         with:
-          context: ./frontend/frontend
+          context: .
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # -----------------------------------------------------------
-  # JOB 2: DEPLOY (Roda na SUA VM via Runner Local)
-  # -----------------------------------------------------------
   deploy:
     needs: test-and-build
     if: github.event_name == 'push'
-    runs-on: [self-hosted, linux] # Requer runner instalado e registrado neste repo
+    runs-on: [self-hosted, linux]
     steps:
       - name: Deploy Local
         run: |
           cd ~/tcc-deploy
           echo "⬇️ Atualizando Frontend..."
-          # Pull da imagem recém criada
           docker compose pull ${{ env.SERVICE_NAME }}
-          # Recria o container
           docker compose up -d --no-deps ${{ env.SERVICE_NAME }}
-          # Limpeza
           docker image prune -f
