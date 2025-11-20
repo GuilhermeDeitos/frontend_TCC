@@ -3,7 +3,6 @@ import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath, URL } from "node:url";
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
@@ -15,10 +14,9 @@ export default defineConfig({
     },
   },
   esbuild: {
-    drop: ["console", "debugger"], // Remove TODOS os console.* e debugger
-    pure: ["console.log", "console.debug"], // Ou específico
+    drop: ["console", "debugger"],
+    pure: ["console.log", "console.debug"],
   },
-
   build: {
     minify: "esbuild",
     rollupOptions: {
@@ -27,9 +25,10 @@ export default defineConfig({
           "react-vendor": ["react", "react-dom"],
           "chart-vendor": ["recharts"],
         },
-        entryFileNames: `assets/[name].[hash].js?v=${Date.now()}`,
-        chunkFileNames: `assets/[name].[hash].js?v=${Date.now()}`,
-        assetFileNames: `assets/[name].[hash].[ext]?v=${Date.now()}`,
+        // Hash único é suficiente - não adicione query string aqui
+        entryFileNames: `assets/[name]-[hash].js`,
+        chunkFileNames: `assets/[name]-[hash].js`,
+        assetFileNames: `assets/[name]-[hash].[ext]`,
       },
     },
   },
