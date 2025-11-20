@@ -30,11 +30,9 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-
       - name: Build Application
         run: npm run build
         env:
-          # Adiciona timestamp no build
           VITE_BUILD_TIME: ${{ github.run_number }}
 
       - name: Set up Docker Buildx
@@ -72,18 +70,17 @@ jobs:
     steps:
       - name: Deploy Local
         run: |
-          cd ~/tcc-deploy
           echo "Atualizando Frontend..."
           
           # Parar e remover container antigo
-          docker-compose stop ${{ env.SERVICE_NAME }}
-          docker-compose rm -f ${{ env.SERVICE_NAME }}
+          docker-compose -f ~/tcc-deploy/docker-compose.yml stop ${{ env.SERVICE_NAME }}
+          docker-compose -f ~/tcc-deploy/docker-compose.yml rm -f ${{ env.SERVICE_NAME }}
           
           # Baixar nova imagem
-          docker-compose pull ${{ env.SERVICE_NAME }}
+          docker-compose -f ~/tcc-deploy/docker-compose.yml pull ${{ env.SERVICE_NAME }}
           
           # Subir container novo
-          docker-compose up -d ${{ env.SERVICE_NAME }}
+          docker-compose -f ~/tcc-deploy/docker-compose.yml up -d ${{ env.SERVICE_NAME }}
           
           # Limpar imagens antigas
           docker image prune -f
@@ -96,8 +93,8 @@ jobs:
           echo "=== Invalidando cache externo ==="
           
           # Requisições locais
-          curl -sS -H "Cache-Control: no-cache" http://localhost/ > /dev/null
-          curl -sS -H "Pragma: no-cache" http://10.88.201.98/ > /dev/null
+          curl -sS -H "Cache-Control: no-cache" http://localhost/ > /dev/null || true
+          curl -sS -H "Pragma: no-cache" http://10.88.201.98/ > /dev/null || true
           
           # Tentar PURGE no proxy externo
           curl -sS -X PURGE https://sad-uepr.unioeste.br/ > /dev/null 2>&1 || true
@@ -116,5 +113,5 @@ jobs:
       - name: Verify Deployment
         run: |
           echo "=== Verificando deployment ==="
-          docker-compose ps ${{ env.SERVICE_NAME }}
-          docker-compose logs --tail=20 ${{ env.SERVICE_NAME }}
+          docker-compose -f ~/tcc-deploy/docker-compose.yml ps ${{ env.SERVICE_NAME }}
+          docker-compose -f ~/tcc-deploy/docker-compose.yml logs --tail=20 ${{ env.SERVICE_NAME }}
