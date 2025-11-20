@@ -74,8 +74,18 @@ jobs:
         run: |
           cd ~/tcc-deploy
           echo "Atualizando Frontend..."
+          
+          # Parar e remover container antigo
+          docker-compose stop ${{ env.SERVICE_NAME }}
+          docker-compose rm -f ${{ env.SERVICE_NAME }}
+          
+          # Baixar nova imagem
           docker-compose pull ${{ env.SERVICE_NAME }}
-          docker-compose up -d --no-deps --force-recreate ${{ env.SERVICE_NAME }}
+          
+          # Subir container novo
+          docker-compose up -d ${{ env.SERVICE_NAME }}
+          
+          # Limpar imagens antigas
           docker image prune -f
       
       - name: Wait for container
