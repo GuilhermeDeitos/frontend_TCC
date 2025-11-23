@@ -73,14 +73,14 @@ jobs:
           echo "Atualizando Frontend..."
           
           # Parar e remover container antigo
-          docker-compose -f ~/tcc-deploy/docker-compose.yml stop ${{ env.SERVICE_NAME }}
-          docker-compose -f ~/tcc-deploy/docker-compose.yml rm -f ${{ env.SERVICE_NAME }}
+          docker compose -f ~/tcc-deploy/docker-compose.yml stop ${{ env.SERVICE_NAME }}
+          docker compose -f ~/tcc-deploy/docker-compose.yml rm -f ${{ env.SERVICE_NAME }}
           
           # Baixar nova imagem
-          docker-compose -f ~/tcc-deploy/docker-compose.yml pull ${{ env.SERVICE_NAME }}
+          docker compose -f ~/tcc-deploy/docker-compose.yml pull ${{ env.SERVICE_NAME }}
           
           # Subir container novo
-          docker-compose -f ~/tcc-deploy/docker-compose.yml up -d ${{ env.SERVICE_NAME }}
+          docker compose -f ~/tcc-deploy/docker-compose.yml up -d ${{ env.SERVICE_NAME }}
           
           # Limpar imagens antigas
           docker image prune -f
@@ -113,5 +113,5 @@ jobs:
       - name: Verify Deployment
         run: |
           echo "=== Verificando deployment ==="
-          docker-compose -f ~/tcc-deploy/docker-compose.yml ps ${{ env.SERVICE_NAME }}
-          docker-compose -f ~/tcc-deploy/docker-compose.yml logs --tail=20 ${{ env.SERVICE_NAME }}
+          docker compose -f ~/tcc-deploy/docker-compose.yml ps ${{ env.SERVICE_NAME }}
+          docker compose -f ~/tcc-deploy/docker-compose.yml logs --tail=20 ${{ env.SERVICE_NAME }}
