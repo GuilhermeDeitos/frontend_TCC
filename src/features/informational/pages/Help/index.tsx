@@ -1,4 +1,3 @@
-
 import { useHelpPageTour } from "../../hooks/useHelpPageTour";
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -44,12 +43,10 @@ export function HelpPage() {
     <div className="min-h-screen flex flex-col">
       <Header />
       
-      <div data-tour="title-section">
-        <BlueTitleCard
-          title="Central de Ajuda"
-          subtitle="Encontre respostas para suas dúvidas sobre o portal, funcionalidades e dados"
-        />
-      </div>
+      <BlueTitleCard
+        title="Central de Ajuda"
+        subtitle="Encontre respostas para suas dúvidas sobre o portal, funcionalidades e dados"
+      />
 
       <div className="flex-grow bg-gradient-to-b from-gray-50 to-white py-8 sm:py-12">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
