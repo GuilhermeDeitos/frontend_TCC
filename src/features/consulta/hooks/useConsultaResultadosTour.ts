@@ -9,94 +9,43 @@ export function useConsultaResultadosTour() {
       {
         id: "results-intro",
         target: '[data-tour="results-viewer"]',
-        title: "📋 Resultados da Consulta",
+        title: "✅ Consulta Concluída!",
         content:
-          "Aqui estão os dados da sua consulta! Você pode alternar entre visualização em tabela ou gráficos, aplicar filtros e exportar os dados.",
+          "Seus dados estão prontos! Alterne entre tabela ou gráficos, aplique filtros compostos e exporte em diversos formatos (Excel, PDF, CSV, JSON).",
         placement: "top" as const,
-      },
-      {
-        id: "view-toggle",
-        target: '[data-tour="view-toggle"]',
-        title: "🔀 Alternar Visualização",
-        content:
-          "Escolha entre tabela (detalhada) ou gráficos (visual). Cada formato tem suas vantagens dependendo da análise que você quer fazer.",
-        placement: "bottom" as const,
       },
       {
         id: "export-options",
         target: '[data-tour="export-options"]',
-        title: "Exportar Dados",
+        title: "📥 Exportação Avançada",
         content:
-          "Exporte os resultados em diversos formatos: Excel (XLSX), PDF, CSV ou JSON. Personalize colunas, título e outras configurações antes de exportar.",
+          "Exporte em múltiplos formatos com personalizações: escolha colunas específicas, adicione título customizado, ajuste formatação e mais. Excel oferece as melhores opções de formatação.",
         placement: "left" as const,
       },
       {
         id: "results-filter-panel",
         target: '[data-tour="results-filter-panel"]',
-        title: "🔍 Filtros Compostos",
+        title: "🔍 Filtros Compostos (AND)",
         content:
-          "Combine múltiplos critérios de filtro para análises mais específicas. Por exemplo, filtre por ano E grupo de natureza ao mesmo tempo!",
+          "Combine até 5 filtros simultaneamente! Todos os critérios devem ser satisfeitos (operação AND). Ex: Ano=2020 E Grupo=Pessoal mostra apenas registros que atendem AMBAS condições.",
         placement: "top" as const,
-      },
-      {
-        id: "add-filter-button",
-        target: '[data-tour="add-filter-button"]',
-        title: "➕ Adicionar Filtros",
-        content:
-          "Clique aqui para adicionar novos filtros. Você pode ter até 5 filtros ativos simultaneamente, permitindo análises muito precisas.",
-        placement: "left" as const,
-        condition: () =>
-          !!document.querySelector('[data-tour="add-filter-button"]'),
-      },
-      {
-        id: "active-filters",
-        target: '[data-tour="active-filters"]',
-        title: "📋 Filtros Configurados",
-        content:
-          "Cada filtro funciona como uma condição AND. Configure o tipo (o que filtrar) e o valor (qual valor específico). Todos os filtros devem ser satisfeitos para um registro aparecer.",
-        placement: "bottom" as const,
-        condition: () =>
-          !!document.querySelector('[data-tour="active-filters"]'),
       },
       {
         id: "table-controls",
         target: '[data-tour="table-controls"]',
-        title: "⚙️ Controles da Tabela",
+        title: "📐 Controles de Densidade",
         content:
-          "Personalize a visualização da tabela: escolha quantos itens exibir por página (10, 25, 50 ou 100) e ative o modo compacto para uma visão mais condensada dos dados.",
+          "Ajuste quantos registros ver por página (10-100) e ative o Modo Compacto para visualizar mais dados na tela. Útil para análises de grandes volumes.",
         placement: "top" as const,
         condition: () =>
           !!document.querySelector('[data-tour="table-controls"]'),
       },
       {
-        id: "compact-mode",
-        target: '[data-tour="compact-mode"]',
-        title: "📐 Modo Compacto",
-        content:
-          "Ative o modo compacto para visualizar mais dados na tela. Ideal quando você precisa ter uma visão geral de muitos registros ao mesmo tempo.",
-        placement: "left" as const,
-        condition: () => !!document.querySelector('[data-tour="compact-mode"]'),
-      },
-      {
-        id: "table-view",
-        target: '[data-tour="table-view"]',
-        title: "Tabela de Dados",
-        content:
-          "A tabela mostra todos os detalhes dos dados consultados. Você pode ordenar clicando nos cabeçalhos das colunas.",
-        placement: "top" as const,
-        condition: () => {
-          const element = document.querySelector('[data-tour="table-view"]');
-          const isVisible =
-            element && window.getComputedStyle(element).display !== "none";
-          return !!isVisible;
-        },
-      },
-      {
         id: "correcao-info",
         target: '[data-tour="correcao-footer"]',
-        title: "💰 Informações de Correção",
+        title: "💰 Detalhes da Correção IPCA",
         content:
-          "Aqui você vê para qual período os valores foram corrigidos. Clique no botão 'Detalhes da Correção' para ver os fatores aplicados a cada ano.",
+          "Veja para qual período os valores foram corrigidos. Clique em 'Detalhes da Correção' para visualizar os fatores de correção aplicados a cada ano individualmente.",
         placement: "top" as const,
         condition: () =>
           !!document.querySelector('[data-tour="correcao-footer"]'),
