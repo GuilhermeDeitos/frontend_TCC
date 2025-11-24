@@ -14,7 +14,7 @@ export function useCalculadoraIPCATour() {
       id: 'title-section',
       target: '[data-tour="title-section"]',
       title: '📊 Correção Monetária pelo IPCA',
-      content: 'Utiliza os índices oficiais do IPCA (IBGE) para atualizar valores entre dezembro/1979 e dois meses antes da data atual (devido ao delay na divulgação oficial).',
+      content: 'Utiliza os índices oficiais do IPCA (IBGE) para atualizar valores entre dezembro/1979 e dois meses antes da data atual (devido ao atraso na divulgação oficial).',
       placement: 'bottom' as const,
     },
     {
