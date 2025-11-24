@@ -12,6 +12,7 @@ interface InputFieldProps {
   step?: string | number;
   min?: string | number;
   max?: string | number;
+  helperText?: string;
 }
 
 
@@ -29,7 +30,8 @@ export function InputField({
   className,
   step,
   min,
-  max
+  max,
+  helperText
 }: InputFieldProps) {
   return (
     <div className={className}>
@@ -50,6 +52,7 @@ export function InputField({
         min={min}
         max={max}
       />
+      {helperText && <p className="mt-1 text-sm text-gray-500">{helperText}</p>}
     </div>
   );
 }
