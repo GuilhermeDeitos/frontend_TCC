@@ -8,6 +8,7 @@ interface TextareaFieldProps {
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   rows?: number;
   disabled?: boolean;
+  helperText?: string;
 }
 
 
@@ -20,7 +21,8 @@ export function TextareaField({
   value,
   onChange,
   rows = 4,
-  disabled = false
+  disabled = false,
+  helperText
 }: TextareaFieldProps) {
   return (
     <div>
@@ -38,6 +40,7 @@ export function TextareaField({
         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-vertical disabled:bg-gray-100 disabled:cursor-not-allowed"
         placeholder={placeholder}
       />
+      {helperText && <p className="mt-1 text-sm text-gray-500">{helperText}</p>}
     </div>
   );
 }
