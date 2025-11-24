@@ -116,7 +116,7 @@ export function Footer() {
               <ul className="space-y-2">
                 <li>
                   <a 
-                    href="/api/docs" 
+                    href="/api" 
                     className="text-blue-400 hover:text-blue-300 transition-colors duration-300 flex items-center gap-2"
                     target="_blank"
                     rel="noopener noreferrer"
