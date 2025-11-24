@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 interface TextareaFieldProps {
   id: string;
   name: string;
@@ -8,7 +10,7 @@ interface TextareaFieldProps {
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   rows?: number;
   disabled?: boolean;
-  helperText?: string;
+  helperText?: string | ReactNode;
 }
 
 
