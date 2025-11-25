@@ -372,43 +372,6 @@ export function useTransparenciaData() {
                   else if (chunk.status === "completo") {
                     console.log("Consulta marcada como completa pelo servidor");
                     consultaConcluida = true;
-                    if (
-                      progressoConsulta.anosProcessados.size >=
-                      totalAnosEsperados
-                    ) {
-                      console.log(
-                        "Todos os anos já foram processados. Ignorando dados do evento 'completo'"
-                      );
-
-                      // Apenas finalize a consulta sem processar novos dados
-                      setProgressoConsulta((prev) => ({
-                        ...prev,
-                        percentual: 100,
-                      }));
-                      setIsLoading(false);
-                      setLoadingMessage("");
-                      return;
-                    }
-
-                    // Processar dados finais se existirem, evitando duplicatas
-                    if (chunk.dados && chunk.dados.length > 0) {
-                      const dadosFiltrados = removerDadosDuplicados(
-                        chunk.dados,
-                        dadosAcumulados
-                      );
-                      console.log(
-                        `Evento completo: ${chunk.dados.length} recebidos, ${dadosFiltrados.length} são novos`
-                      );
-
-                      if (dadosFiltrados.length > 0) {
-                        const novosDados = processarDadosChunk(
-                          { ...chunk, dados: dadosFiltrados },
-                          dadosAcumulados
-                        );
-                        dadosAcumulados = [...dadosAcumulados, ...novosDados];
-                        setDadosConsulta([...dadosAcumulados]);
-                      }
-                    }
 
                     // Finalizar consulta
                     setProgressoConsulta((prev) => ({
