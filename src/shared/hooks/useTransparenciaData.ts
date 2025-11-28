@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { DadosConsulta, ConsultaParams } from "@features/consulta/types/consulta";
+import type {
+  DadosConsulta,
+  ConsultaParams,
+} from "@features/consulta/types/consulta";
 import api from "../utils/api";
 import Swal from "sweetalert2";
 import { useIPCAData } from "./useIPCAData";
 import { processarDadosChunk } from "../utils/processadorDados";
 import { extrairMensagemErro } from "../utils/errorHandlers";
-
 
 interface ProgressoConsulta {
   anosProcessados: Set<number>;
@@ -180,7 +182,9 @@ export function useTransparenciaData() {
           setConsultaAtualId(null);
           try {
             sessionStorage.removeItem("currentConsultaId");
-          } catch { /* empty */ }
+          } catch {
+            /* empty */
+          }
         })
         .catch((err) => {
           console.error(`Erro ao cancelar explicitamente: ${err}`);
@@ -299,7 +303,9 @@ export function useTransparenciaData() {
                         "currentConsultaId",
                         chunk.id_consulta
                       );
-                    } catch { /* empty */ }
+                    } catch {
+                      /* empty */
+                    }
                   }
 
                   if (chunk.status === "iniciando") {
@@ -366,12 +372,26 @@ export function useTransparenciaData() {
                         progressoConsulta.anosProcessados.size + 1
                       }/${totalAnosEsperados})`
                     );
-                  }
-
-                  // Substitua também o código que trata os eventos completos (por volta da linha 260)
-                  else if (chunk.status === "completo") {
+                  } else if (chunk.status === "completo") {
                     console.log("Consulta marcada como completa pelo servidor");
                     consultaConcluida = true;
+
+                    // Aguardar para garantir que todos os dados foram processados
+                    const anosProcessadosAtual =
+                      progressoConsulta.anosProcessados.size;
+
+                    console.log(
+                      `Evento completo recebido. Anos processados até agora: ${anosProcessadosAtual}/${totalAnosEsperados}`
+                    );
+
+                    // Se ainda não processamos todos, aguardar mais um pouco
+                    if (anosProcessadosAtual < totalAnosEsperados) {
+                      console.log(
+                        `Aguardando mais dados... Processados ${anosProcessadosAtual}/${totalAnosEsperados}`
+                      );
+                      consultaConcluida = false;
+                      continue; // Continuar lendo stream
+                    }
 
                     // Finalizar consulta
                     setProgressoConsulta((prev) => ({
@@ -380,6 +400,14 @@ export function useTransparenciaData() {
                     }));
                     setIsLoading(false);
                     setLoadingMessage("");
+
+                    // Exibir resumo
+                    Swal.fire({
+                      icon: "success",
+                      title: "Consulta Concluída!",
+                      text: `${dadosAcumulados.length} registros processados com sucesso`,
+                      timer: 2000,
+                    });
                   } else if (chunk.status === "erro") {
                     throw new Error(
                       chunk.mensagem ||
@@ -420,6 +448,18 @@ export function useTransparenciaData() {
           }
         }
 
+        if (
+          consultaConcluida &&
+          progressoConsulta.anosProcessados.size < totalAnosEsperados
+        ) {
+          console.log(
+            `Aguardando dados finais... ${progressoConsulta.anosProcessados.size}/${totalAnosEsperados}`
+          );
+
+          // Aguardar mais 2 segundos para eventos atrasados
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+
         // VERIFICAÇÃO FINAL GARANTIDA
         setProgressoConsulta((prev) => {
           const anosProcessadosAtual = prev.anosProcessados.size;
@@ -429,9 +469,7 @@ export function useTransparenciaData() {
           console.log(
             `Verificação final: ${anosProcessadosAtual}/${totalAnosEsperados} anos processados`
           );
-          console.log(
-            `Consulta marcada como completa: ${consultaConcluida}`
-          );
+          console.log(`Consulta marcada como completa: ${consultaConcluida}`);
           console.log(`Todos os anos processados: ${todosAnosProcessados}`);
 
           // SEMPRE finalizar se todos os anos foram processados
