@@ -14,8 +14,8 @@ import { ResultSection } from "../../components/CalculadoraIPCA/ResultSection";
 import { HelpModal } from "../../components/CalculadoraIPCA/HelpModal";
 import { type FormData, type Resultado, MESES } from "../../types/calculadora";
 import { validateCalculatorInput } from "../../utils/validation";
-import apiIpca from "@shared/utils/api";
 import api from "@shared/utils/api";
+import { useCorrigirValor } from "../../hooks/useCorrigirValor";
 
 const INITIAL_FORM_DATA: FormData = {
   valor: "",
@@ -36,13 +36,15 @@ export function CalculadoraIPCAPage() {
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
   const [resultado, setResultado] = useState<Resultado>(INITIAL_RESULTADO);
   const [error, setError] = useState<string | null>(null);
-  const [isCalculating, setIsCalculating] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
 
   const tour = useCalculadoraIPCATour();
 
   const mesAtual = new Date().getMonth() + 1;
   const anoAtual = new Date().getFullYear();
+
+  // Hook da mutation
+  const { mutateAsync, isPending } = useCorrigirValor();
 
   useEffect(() => {
     const checkApiStatus = async () => {
@@ -70,43 +72,53 @@ export function CalculadoraIPCAPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const validation = validateCalculatorInput(formData, mesAtual, anoAtual);
+    // Validação dos dados do formulário
+    const validation = validateCalculatorInput(
+      formData,
+      mesAtual,
+      anoAtual
+    );
+
     if (!validation.isValid) {
       Swal.fire({
         icon: "error",
         title: "Atenção",
         text: validation.message,
       });
+
       return;
     }
 
-    setIsCalculating(true);
-
     try {
-      const response = await apiIpca.get("/ipca/corrigir", {
-        params: {
-          mes_inicial: formData.mesInicial,
-          ano_inicial: formData.anoInicial,
-          mes_final: formData.mesFinal,
-          ano_final: formData.anoFinal,
-          valor: formData.valor,
-        },
+      // Chamada da mutation do React Query
+      const data = await mutateAsync({
+        mes_inicial: formData.mesInicial,
+        ano_inicial: formData.anoInicial,
+        mes_final: formData.mesFinal,
+        ano_final: formData.anoFinal,
+        valor: formData.valor,
       });
 
-      setResultado(response.data);
+      // Atualiza o resultado
+      setResultado(data);
 
-      if (response.data.valor_corrigido > 0) {
+      // Feedback de sucesso
+      if (data.valor_corrigido > 0) {
         Swal.fire({
           icon: "success",
           title: "Sucesso",
           html: `
-            <div class="text-left">
-              <p class="mb-2"><strong>Valor Corrigido:</strong> R$ ${response.data.valor_corrigido.toFixed(
-                2
-              )}</p>
-              <p class="text-sm text-gray-600">O resultado detalhado está exibido abaixo do formulário.</p>
-            </div>
-          `,
+          <div class="text-left">
+            <p class="mb-2">
+              <strong>Valor Corrigido:</strong>
+              R$ ${data.valor_corrigido.toFixed(2)}
+            </p>
+
+            <p class="text-sm text-gray-600">
+              O resultado detalhado está exibido abaixo do formulário.
+            </p>
+          </div>
+        `,
         });
       } else {
         Swal.fire({
@@ -116,14 +128,17 @@ export function CalculadoraIPCAPage() {
         });
       }
     } catch (error) {
+      // Tratamento de erro
       Swal.fire({
         icon: "error",
         title: "Erro",
         text: "Ocorreu um erro ao calcular a correção monetária.",
       });
-      console.error("Erro ao calcular a correção monetária:", error);
-    } finally {
-      setIsCalculating(false);
+
+      console.error(
+        "Erro ao calcular a correção monetária:",
+        error
+      );
     }
   };
 
@@ -297,14 +312,13 @@ export function CalculadoraIPCAPage() {
                     <div className="mt-6" data-tour="submit-button">
                       <button
                         type="submit"
-                        disabled={isCalculating}
-                        className={`w-full py-4 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-3 ${
-                          isCalculating
+                        disabled={isPending}
+                        className={`w-full py-4 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-3 ${isPending
                             ? "bg-blue-400 cursor-not-allowed"
                             : "bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40"
-                        }`}
+                          }`}
                       >
-                        {isCalculating ? (
+                        {isPending ? (
                           <>
                             <svg
                               className="animate-spin h-5 w-5"
