@@ -14,7 +14,7 @@ createRoot(document.getElementById('root')!).render(
     {/* Provider do React Query */}
     <QueryClientProvider client={queryClient}>
       <App />
-      <ReactQueryDevtools initialIsOpen={false} />
+    {/*  <ReactQueryDevtools initialIsOpen={false} /> */}
     </QueryClientProvider>
 
   </StrictMode>,
