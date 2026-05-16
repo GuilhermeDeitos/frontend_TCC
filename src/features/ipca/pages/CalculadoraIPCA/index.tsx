@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+// 1. Novos imports do React Hook Form e Zod
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import Swal from "sweetalert2";
 import { Header } from "@shared/components/Layout/Header";
@@ -12,18 +15,11 @@ import { TourRestartButton } from "@shared/components/tour/TourRestartButton";
 import { useCalculadoraIPCATour } from "../../hooks/useCalculadoraIPCATour";
 import { ResultSection } from "../../components/CalculadoraIPCA/ResultSection";
 import { HelpModal } from "../../components/CalculadoraIPCA/HelpModal";
-import { type FormData, type Resultado, MESES } from "../../types/calculadora";
-import { validateCalculatorInput } from "../../utils/validation";
+import { type Resultado, MESES } from "../../types/calculadora"; // Removido o tipo FormData antigo
+// 2. Import do nosso novo schema e sua tipagem
+import { createCalculadoraSchema, type CalculadoraFormData } from "../../utils/validation";
 import api from "@shared/utils/api";
 import { useCorrigirValor } from "../../hooks/useCorrigirValor";
-
-const INITIAL_FORM_DATA: FormData = {
-  valor: "",
-  mesInicial: "",
-  anoInicial: "",
-  mesFinal: "",
-  anoFinal: "",
-};
 
 const INITIAL_RESULTADO: Resultado = {
   indice_ipca_final: 0,
@@ -33,7 +29,6 @@ const INITIAL_RESULTADO: Resultado = {
 };
 
 export function CalculadoraIPCAPage() {
-  const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
   const [resultado, setResultado] = useState<Resultado>(INITIAL_RESULTADO);
   const [error, setError] = useState<string | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -42,6 +37,32 @@ export function CalculadoraIPCAPage() {
 
   const mesAtual = new Date().getMonth() + 1;
   const anoAtual = new Date().getFullYear();
+
+  // 3.schema dinâmico usando useMemo para não recriar a cada render
+  const validationSchema = useMemo(
+    () => createCalculadoraSchema(mesAtual, anoAtual),
+    [mesAtual, anoAtual]
+  );
+
+  // 4. 
+  // Configurando o React Hook Form com Zod
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<CalculadoraFormData>({
+    //  'as any' aqui para ignorar o conflito do z.coerce (unknown) com o RHF (number)
+    resolver: zodResolver(validationSchema) as any, 
+    defaultValues: {
+      //"" as unknown as number para o input iniciar vazio (sem mostrar "0")
+      // e ainda satisfazer a tipagem do TypeScript
+      valor: "" as unknown as number, 
+      mesInicial: "",
+      anoInicial: "",
+      mesFinal: "",
+      anoFinal: "",
+    },
+  });
 
   // Hook da mutation
   const { mutateAsync, isPending } = useCorrigirValor();
@@ -59,51 +80,36 @@ export function CalculadoraIPCAPage() {
     checkApiStatus();
   }, []);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validação dos dados do formulário
-    const validation = validateCalculatorInput(
-      formData,
-      mesAtual,
-      anoAtual
-    );
-
-    if (!validation.isValid) {
+  // 5. useEffect para capturar erros do Zod e exibir no SweetAlert
+  useEffect(() => {
+    // Pega o primeiro erro que ocorrer no formulário
+    const firstError = Object.values(errors)[0];
+    if (firstError?.message) {
       Swal.fire({
         icon: "error",
         title: "Atenção",
-        text: validation.message,
+        text: firstError.message as string,
       });
-
-      return;
     }
+  }, [errors]);
 
+  // 6. função de submissão (só é chamada se o formulário for validado pelo Zod)
+  const onSubmitForm = async (data: CalculadoraFormData) => {
     try {
-      // Chamada da mutation do React Query
-      const data = await mutateAsync({
-        mes_inicial: formData.mesInicial,
-        ano_inicial: formData.anoInicial,
-        mes_final: formData.mesFinal,
-        ano_final: formData.anoFinal,
-        valor: formData.valor,
+      // Chamada da mutation do React Query usando os dados já validados
+      const resultData = await mutateAsync({
+        mes_inicial: data.mesInicial,
+        ano_inicial: data.anoInicial,
+        mes_final: data.mesFinal,
+        ano_final: data.anoFinal,
+        valor: data.valor.toString(), // Convertendo para string 
       });
 
       // Atualiza o resultado
-      setResultado(data);
+      setResultado(resultData);
 
       // Feedback de sucesso
-      if (data.valor_corrigido > 0) {
+      if (resultData.valor_corrigido > 0) {
         Swal.fire({
           icon: "success",
           title: "Sucesso",
@@ -111,7 +117,7 @@ export function CalculadoraIPCAPage() {
           <div class="text-left">
             <p class="mb-2">
               <strong>Valor Corrigido:</strong>
-              R$ ${data.valor_corrigido.toFixed(2)}
+              R$ ${resultData.valor_corrigido.toFixed(2)}
             </p>
 
             <p class="text-sm text-gray-600">
@@ -210,24 +216,22 @@ export function CalculadoraIPCAPage() {
                     </div>
                   </div>
 
-                  {/* Formulário */}
-                  <form onSubmit={handleSubmit} className="p-6">
+                  {/* 7. Formulário conectado ao handleSubmit do Hook Form */}
+                  <form onSubmit={handleSubmit(onSubmitForm)} className="p-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {/* Coluna Esquerda */}
                       <div className="space-y-6">
                         {/* Valor */}
                         <div data-tour="valor-field">
+                          {/* 8. Substituído 'value' e 'onChange' por {...register("campo")} */}
                           <InputField
                             id="valor"
-                            name="valor"
                             type="number"
                             label="Valor Original (R$)"
                             placeholder="1000.00"
-                            required
-                            value={formData.valor}
-                            onChange={handleChange}
                             step="0.01"
                             min="0.01"
+                            {...register("valor")}
                           />
                         </div>
 
@@ -240,23 +244,17 @@ export function CalculadoraIPCAPage() {
                             <div data-tour="mes-inicial">
                               <SelectField
                                 id="mesInicial"
-                                name="mesInicial"
                                 label="Mês"
-                                required
-                                value={formData.mesInicial}
-                                onChange={handleChange}
                                 options={MESES}
+                                {...register("mesInicial")}
                               />
                             </div>
                             <div data-tour="ano-inicial">
                               <SelectField
                                 id="anoInicial"
-                                name="anoInicial"
                                 label="Ano"
-                                required
-                                value={formData.anoInicial}
-                                onChange={handleChange}
                                 options={gerarAnosDisponiveis(anoAtual)}
+                                {...register("anoInicial")}
                               />
                             </div>
                           </div>
@@ -284,23 +282,17 @@ export function CalculadoraIPCAPage() {
                             <div data-tour="mes-final">
                               <SelectField
                                 id="mesFinal"
-                                name="mesFinal"
                                 label="Mês"
-                                required
-                                value={formData.mesFinal}
-                                onChange={handleChange}
                                 options={MESES}
+                                {...register("mesFinal")}
                               />
                             </div>
                             <div data-tour="ano-final">
                               <SelectField
                                 id="anoFinal"
-                                name="anoFinal"
                                 label="Ano"
-                                required
-                                value={formData.anoFinal}
-                                onChange={handleChange}
                                 options={gerarAnosDisponiveis(anoAtual)}
+                                {...register("anoFinal")}
                               />
                             </div>
                           </div>
@@ -313,10 +305,11 @@ export function CalculadoraIPCAPage() {
                       <button
                         type="submit"
                         disabled={isPending}
-                        className={`w-full py-4 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-3 ${isPending
+                        className={`w-full py-4 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-3 ${
+                          isPending
                             ? "bg-blue-400 cursor-not-allowed"
                             : "bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40"
-                          }`}
+                        }`}
                       >
                         {isPending ? (
                           <>
