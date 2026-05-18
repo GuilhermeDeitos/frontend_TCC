@@ -5,13 +5,19 @@ import { InputField } from "@shared/components/UI/Input";
 import { TourGuide } from "@shared/components/tour/TourGuide";
 import { TourRestartButton } from "@shared/components/tour/TourRestartButton";
 import { useContactPageTour } from "../../hooks/useContactPageTour";
-import { useState } from "react";
-import Swal from 'sweetalert2'
+import Swal from 'sweetalert2';
 import api from "@shared/utils/api";
 import { TextareaField } from "@/shared/components/UI/TextArea";
 import { Form } from "@/shared/components/UI/Form";
 import { AxiosError } from "axios";
 
+import { contactSchema, type ContactFormData } from "@/shared/schemas/contactSchema";
+
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
+
+// Tipagens de erro mantidas para o backend
 interface ValidationError {
   loc: (string | number)[];
   msg: string;
@@ -24,27 +30,27 @@ interface ErrorResponse {
 }
 
 export function ContactPage() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    message: ''
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [charCount, setCharCount] = useState(0);
   const tour = useContactPageTour();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-
-    // Atualizar contador de caracteres para mensagem
-    if (name === 'message') {
-      setCharCount(value.length);
+  // 3. Configuração do React Hook Form
+  const {
+    register,
+    handleSubmit,
+    watch,
+    reset,
+    formState: { errors }
+  } = useForm<ContactFormData>({
+    resolver: zodResolver(contactSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      message: ''
     }
-  };
+  });
+
+  // Watch da mensagem para controlar o contador de caracteres
+  const messageValue = watch('message', '');
+  const charCount = messageValue.length;
 
   const getFieldNameInPortuguese = (field: string): string => {
     const fieldMap: Record<string, string> = {
@@ -59,83 +65,19 @@ export function ContactPage() {
     return errors.map(error => {
       const field = error.loc[error.loc.length - 1];
       const fieldName = getFieldNameInPortuguese(String(field));
-      
-      // Traduzir mensagens comuns
       let message = error.msg;
       
-      if (message.includes('field required')) {
-        message = 'é obrigatório';
-      } else if (message.includes('value is not a valid email')) {
-        message = 'deve ser um e-mail válido (ex: seu@email.com)';
-      } else if (message.includes('at least')) {
-        const match = message.match(/at least (\d+)/);
-        if (match) {
-          message = `deve ter no mínimo ${match[1]} caracteres`;
-        }
-      } else if (message.includes('at most')) {
-        const match = message.match(/at most (\d+)/);
-        if (match) {
-          message = `deve ter no máximo ${match[1]} caracteres`;
-        }
-      }
+      if (message.includes('field required')) message = 'é obrigatório';
+      else if (message.includes('value is not a valid email')) message = 'deve ser um e-mail válido';
       
       return `• ${fieldName}: ${message}`;
     }).join('\n');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validação local antes de enviar
-    const localErrors: string[] = [];
-    
-    if (!formData.name.trim()) {
-      localErrors.push('• Nome é obrigatório');
-    } else if (formData.name.trim().length < 2) {
-      localErrors.push('• Nome deve ter no mínimo 2 caracteres');
-    } else if (formData.name.trim().length > 100) {
-      localErrors.push('• Nome deve ter no máximo 100 caracteres');
-    } else if (!/^[a-zA-ZÀ-ÿ\s'-]+$/.test(formData.name)) {
-      localErrors.push('• Nome deve conter apenas letras, espaços, hífens e apóstrofos');
-    }
-    
-    if (!formData.email.trim()) {
-      localErrors.push('• E-mail é obrigatório');
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      localErrors.push('• E-mail deve ser válido (ex: seu@email.com)');
-    }
-    
-    if (!formData.message.trim()) {
-      localErrors.push('• Mensagem é obrigatória');
-    } else if (formData.message.trim().length < 10) {
-      localErrors.push('• Mensagem deve ter no mínimo 10 caracteres');
-    } else if (formData.message.trim().length > 5000) {
-      localErrors.push('• Mensagem deve ter no máximo 5000 caracteres');
-    } else {
-      // Verificar quantidade de links
-      const urlRegex = /http[s]?:\/\/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+/g;
-      const urls = formData.message.match(urlRegex) || [];
-      if (urls.length > 3) {
-        localErrors.push('• Mensagem deve conter no máximo 3 links');
-      }
-    }
-    
-    if (localErrors.length > 0) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Verifique os dados do formulário',
-        html: `<div style="text-align: left; white-space: pre-line;">${localErrors.join('\n')}</div>`,
-        confirmButtonText: 'Entendi',
-        confirmButtonColor: '#2563eb'
-      });
-      return;
-    }
-    
-    setIsLoading(true);
-    
-    try {
-      await api.post('/email/contact', formData);
-      
+  // 4. Configuração do React Query para a submissão
+  const mutation = useMutation({
+    mutationFn: (data: ContactFormData) => api.post('/email/contact', data),
+    onSuccess: async () => {
       await Swal.fire({
         icon: 'success',
         title: 'Mensagem enviada com sucesso!',
@@ -143,62 +85,43 @@ export function ContactPage() {
         confirmButtonText: 'OK',
         confirmButtonColor: '#10b981'
       });
-      
-      setFormData({ name: '', email: '', message: '' });
-      setCharCount(0);
-    } catch (error) {
+      reset(); // Limpa o formulário automaticamente
+    },
+    onError: (error: AxiosError<ErrorResponse>) => {
       console.error('Erro ao enviar mensagem:', error);
-      
-      const axiosError = error as AxiosError<ErrorResponse>;
-      const status = axiosError.response?.status;
-      const data = axiosError.response?.data;
+      const status = error.response?.status;
+      const data = error.response?.data;
       
       let title = 'Erro ao enviar mensagem';
       let message = 'Ocorreu um erro inesperado. Por favor, tente novamente mais tarde.';
       let icon: 'error' | 'warning' | 'info' = 'error';
       
       if (status === 422) {
-        // Erro de validação
         icon = 'warning';
         title = 'Dados inválidos';
-        
         if (data?.detail && Array.isArray(data.detail)) {
-          const formattedErrors = formatValidationErrors(data.detail);
-          message = `Por favor, corrija os seguintes erros:\n\n${formattedErrors}`;
+          message = `Por favor, corrija os seguintes erros:\n\n${formatValidationErrors(data.detail)}`;
         } else if (typeof data?.detail === 'string') {
           message = data.detail;
         } else {
-          message = 'Verifique se todos os campos estão preenchidos corretamente:\n\n' +
-                   '• Nome: 2-100 caracteres, apenas letras\n' +
-                   '• E-mail: formato válido (ex: seu@email.com)\n' +
-                   '• Mensagem: 10-5000 caracteres, máximo 3 links';
+          message = 'Verifique se todos os campos estão preenchidos corretamente.';
         }
       } else if (status === 400) {
-        // Bad Request
         icon = 'warning';
         title = 'Requisição inválida';
-        message = typeof data?.detail === 'string' 
-          ? data.detail 
-          : 'Os dados enviados estão em formato incorreto. Verifique e tente novamente.';
+        message = typeof data?.detail === 'string' ? data.detail : 'Os dados enviados estão incorretos.';
       } else if (status === 500) {
-        // Erro interno do servidor
         icon = 'error';
         title = 'Erro no servidor de e-mail';
-        message = typeof data?.detail === 'string'
-          ? data.detail
-          : 'Ocorreu um erro ao processar seu e-mail. Por favor, tente novamente ou entre em contato diretamente pelo e-mail: guilherme.cascavel@gmail.com';
+        message = typeof data?.detail === 'string' ? data.detail : 'Ocorreu um erro. Entre em contato por: guilherme.cascavel@gmail.com';
       } else if (status === 503) {
-        // Serviço indisponível
         icon = 'info';
-        title = 'Serviço temporariamente indisponível';
-        message = typeof data?.detail === 'string'
-          ? data.detail
-          : 'O serviço de e-mail está temporariamente indisponível. Por favor, tente novamente em alguns minutos ou entre em contato diretamente: guilherme.cascavel@gmail.com';
-      } else if (!axiosError.response) {
-        // Erro de rede
+        title = 'Serviço indisponível';
+        message = 'Serviço temporariamente indisponível. Tente novamente mais tarde.';
+      } else if (!error.response) {
         icon = 'error';
         title = 'Erro de conexão';
-        message = 'Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.';
+        message = 'Não foi possível conectar ao servidor. Verifique sua internet.';
       }
       
       Swal.fire({
@@ -211,9 +134,11 @@ export function ContactPage() {
           ? '<a href="mailto:guilherme.cascavel@gmail.com" style="color: #2563eb;">Enviar e-mail diretamente</a>'
           : undefined
       });
-    } finally {
-      setIsLoading(false);
     }
+  });
+
+  const onSubmit = (data: ContactFormData) => {
+    mutation.mutate(data);
   };
 
   return (
@@ -232,21 +157,19 @@ export function ContactPage() {
             <Form
               title="Envie sua Mensagem"
               subtitle="Preencha o formulário abaixo e retornaremos o contato em breve."
-              onSubmit={handleSubmit}
+              onSubmit={handleSubmit(onSubmit)}
               submitButtonText="Enviar Mensagem"
-              isLoading={isLoading}
+              isLoading={mutation.isPending}
             >
               <div data-tour="name-field">
                 <InputField
                   id="name"
-                  name="name"
                   type="text"
                   label="Nome Completo"
                   placeholder="Digite seu nome completo"
-                  required
-                  value={formData.name}
-                  onChange={handleChange}
-                  disabled={isLoading}
+                  disabled={mutation.isPending}
+                  {...register("name")}
+                  error={errors.name?.message}
                   helperText="2-100 caracteres, apenas letras, espaços, hífens e apóstrofos"
                 />
               </div>
@@ -254,14 +177,12 @@ export function ContactPage() {
               <div data-tour="email-field">
                 <InputField
                   id="email"
-                  name="email"
                   type="email"
                   label="E-mail"
                   placeholder="seu.email@exemplo.com"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  disabled={isLoading}
+                  disabled={mutation.isPending}
+                  {...register("email")}
+                  error={errors.email?.message}
                   helperText="Formato válido: usuario@dominio.com"
                 />
               </div>
@@ -269,14 +190,12 @@ export function ContactPage() {
               <div data-tour="message-field">
                 <TextareaField
                   id="message"
-                  name="message"
                   label="Mensagem"
                   placeholder="Digite sua mensagem, dúvida ou sugestão... (mínimo 10 caracteres)"
-                  required
                   rows={6}
-                  value={formData.message}
-                  onChange={handleChange}
-                  disabled={isLoading}
+                  disabled={mutation.isPending}
+                  {...register("message")}
+                  error={errors.message?.message}
                   helperText={
                     <div className="flex justify-between items-center text-xs">
                       <span>10-5000 caracteres, máximo 3 links</span>
