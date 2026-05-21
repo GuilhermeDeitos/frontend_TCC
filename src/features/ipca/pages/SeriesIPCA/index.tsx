@@ -1,6 +1,9 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 
+// Importando o helper do TanStack Table para criar as colunas
+import { createColumnHelper } from "@tanstack/react-table";
+
 import { Header } from "@shared/components/Layout/Header";
 import { Footer } from "@shared/components/Layout/Footer";
 import { BlueTitleCard } from "@shared/components/UI/BlueTitleCard";
@@ -24,6 +27,31 @@ const INITIAL_FILTER_STATE: FilterState = {
   year: "",
   month: "",
 };
+
+// --- DEFINIÇÃO DAS NOVAS COLUNAS PARA O TANSTACK TABLE ---
+const columnHelper = createColumnHelper<any>();
+
+const ipcaColumns = [
+  columnHelper.accessor("data", {
+    id: "data",
+    header: "Data",
+    cell: info => info.getValue() || "-",
+  }),
+  columnHelper.accessor("valor", {
+    id: "valor",
+    header: "Valor (%)",
+    cell: info => {
+      const val = info.getValue();
+      // Formatação básica com badge para o valor do IPCA
+      return (
+        <span className="inline-flex items-center rounded-full font-medium px-3 py-1 bg-blue-100 text-blue-900">
+          {val !== null && val !== undefined ? `${val}%` : "-"}
+        </span>
+      );
+    },
+  })
+];
+// ---------------------------------------------------------
 
 export function SeriesIPCAPage() {
   const [filterState, setFilterState] = useState<FilterState>(INITIAL_FILTER_STATE);
@@ -72,11 +100,6 @@ export function SeriesIPCAPage() {
 
   const handleFilterChange = (newState: Partial<FilterState>) => {
     setFilterState((prev) => ({ ...prev, ...newState }));
-  };
-
-  const columnsKeyMap = {
-    Data: "data",
-    Valor: "valor",
   };
 
   if (isLoading) {
@@ -196,9 +219,7 @@ export function SeriesIPCAPage() {
                             new Date(`01/${b.data}`).getTime() -
                             new Date(`01/${a.data}`).getTime()
                         )}
-                        columns={["Data", "Valor"]}
-                        tableType="geral"
-                        keyMap={columnsKeyMap}
+                        columns={ipcaColumns} // <--- Passando a nova configuração de colunas
                       />
                     </div>
                   </div>
