@@ -1,5 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
+
+// Importando o helper do TanStack Table para criar as colunas
+import { createColumnHelper } from "@tanstack/react-table";
 
 import { Header } from "@shared/components/Layout/Header";
 import { Footer } from "@shared/components/Layout/Footer";
@@ -13,10 +16,11 @@ import { StatsPanel } from "../../components/SeriesIPCA/StatsPanel";
 
 import { useSeriesIPCATour } from "../../hooks/useSeriesIPCATour";
 
-import type { FilterState, SerieIPCA } from "../../types/series";
+import type { FilterState } from "../../types/series";
 
-import api from "@/shared/utils/api";
 import { Table } from "@/shared/components/UI/Table";
+
+import { useIPCAData } from "../../hooks/useIPCAData";
 
 const INITIAL_FILTER_STATE: FilterState = {
   type: "all",
@@ -24,47 +28,44 @@ const INITIAL_FILTER_STATE: FilterState = {
   month: "",
 };
 
+// --- DEFINIÇÃO DAS NOVAS COLUNAS PARA O TANSTACK TABLE ---
+const columnHelper = createColumnHelper<any>();
+
+const ipcaColumns = [
+  columnHelper.accessor("data", {
+    id: "data",
+    header: "Data",
+    cell: info => info.getValue() || "-",
+  }),
+  columnHelper.accessor("valor", {
+    id: "valor",
+    header: "Valor (%)",
+    cell: info => {
+      const val = info.getValue();
+      // Formatação básica com badge para o valor do IPCA
+      return (
+        <span className="inline-flex items-center rounded-full font-medium px-3 py-1 bg-blue-100 text-blue-900">
+          {val !== null && val !== undefined ? `${val}%` : "-"}
+        </span>
+      );
+    },
+  })
+];
+// ---------------------------------------------------------
+
 export function SeriesIPCAPage() {
-  const [series, setSeries] = useState<SerieIPCA[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
   const [filterState, setFilterState] = useState<FilterState>(INITIAL_FILTER_STATE);
-  
+
   const tour = useSeriesIPCATour();
 
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await api.get("/ipca");
-      const dadosIPCA = Object.entries(response.data.data).map(
-        ([key, value], index) => ({
-          id: index,
-          data: key,
-          valor: Number(value),
-        })
-      );
-
-      setSeries(dadosIPCA);
-
-      if (!tour.isTourCompleted && !tour.isActive) {
-        setTimeout(() => tour.startTour(), 1000);
-      }
-    } catch (error: any) {
-      const errorMessage =
-        error.message === "Network Error"
-          ? "Servidor fora do ar"
-          : "Erro ao buscar série histórica do IPCA";
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Query da série histórica IPCA
+  const {
+    data: series = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useIPCAData();
 
   // Filtrar dados
   const filteredSeries = useMemo(() => {
@@ -101,12 +102,7 @@ export function SeriesIPCAPage() {
     setFilterState((prev) => ({ ...prev, ...newState }));
   };
 
-  const columnsKeyMap = {
-    Data: "data",
-    Valor: "valor",
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -158,78 +154,84 @@ export function SeriesIPCAPage() {
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      {error ? (
-        <ErrorPanel message={error} retry={fetchData} />
-      ) : (
-        <>
-          <div data-tour="title-section">
-            <BlueTitleCard
-              title="Série Histórica do IPCA"
-              subtitle="Índices oficiais do IBGE desde dezembro de 1979, atualizados mensalmente"
-            />
-          </div>
+      {
+        isError ? (
+          <ErrorPanel
+            message={
+              error instanceof Error
+                ? error.message
+                : "Erro ao buscar série histórica do IPCA"
+            }
+            retry={refetch}
+          />
+        ) : (
+          <>
+            <div data-tour="title-section">
+              <BlueTitleCard
+                title="Série Histórica do IPCA"
+                subtitle="Índices oficiais do IBGE desde dezembro de 1979, atualizados mensalmente"
+              />
+            </div>
 
-          <main className="flex-grow bg-gray-50 py-8 px-4">
-            <div className="max-w-7xl mx-auto">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-              >
-                <StatsPanel series={filteredSeries} />
-                <FilterPanel
-                  filterState={filterState}
-                  onFilterChange={handleFilterChange}
-                  availableYears={availableYears}
-                />
+            <main className="flex-grow bg-gray-50 py-8 px-4">
+              <div className="max-w-7xl mx-auto">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <StatsPanel series={filteredSeries} />
+                  <FilterPanel
+                    filterState={filterState}
+                    onFilterChange={handleFilterChange}
+                    availableYears={availableYears}
+                  />
 
-                <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                  <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h2 className="text-2xl font-bold text-white mb-1">
-                          Tabela de Índices
-                        </h2>
-                        <p className="text-blue-100 text-sm">
-                          {filteredSeries.length} registro(s) encontrado(s)
-                        </p>
+                  <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                    <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-2xl font-bold text-white mb-1">
+                            Tabela de Índices
+                          </h2>
+                          <p className="text-blue-100 text-sm">
+                            {filteredSeries.length} registro(s) encontrado(s)
+                          </p>
+                        </div>
+                        {filterState.type !== "all" && (
+                          <button
+                            onClick={() => setFilterState(INITIAL_FILTER_STATE)}
+                            className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Limpar Filtros
+                          </button>
+                        )}
                       </div>
-                      {filterState.type !== "all" && (
-                        <button
-                          onClick={() => setFilterState(INITIAL_FILTER_STATE)}
-                          className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                          Limpar Filtros
-                        </button>
-                      )}
+                    </div>
+
+                    <div className="p-6">
+                      <Table
+                        items={filteredSeries.sort(
+                          (a, b) =>
+                            new Date(`01/${b.data}`).getTime() -
+                            new Date(`01/${a.data}`).getTime()
+                        )}
+                        columns={ipcaColumns} // <--- Passando a nova configuração de colunas
+                      />
                     </div>
                   </div>
-
-                  <div className="p-6">
-                    <Table
-                      items={filteredSeries.sort(
-                        (a, b) =>
-                          new Date(`01/${b.data}`).getTime() -
-                          new Date(`01/${a.data}`).getTime()
-                      )}
-                      columns={["Data", "Valor"]}
-                      tableType="geral"
-                      keyMap={columnsKeyMap}
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          </main>
-        </>
-      )}
+                </motion.div>
+              </div>
+            </main>
+          </>
+        )}
 
       <Footer />
 
-      {!loading && !error && (
+      {!isLoading && !isError && (
         <>
           <TourGuide
             isActive={tour.isActive}

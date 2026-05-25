@@ -17,6 +17,8 @@ import { CompactFilterPanel } from "./CompactFilterPanel";
 import { FilterSummary } from "./FilterSummary";
 import { TableControls } from "./TableControls";
 
+import { columns } from "@shared/components/UI/Table/columns";
+
 // Lazy imports (componentes pesados)
 const Table = lazy(() =>
   import("@shared/components/UI/Table").then((m) => ({ default: m.Table }))
@@ -61,44 +63,8 @@ const LoadingFallback = memo(() => (
 ));
 LoadingFallback.displayName = "LoadingFallback";
 
-// Constantes
-const TABLE_COLUMNS = [
-  "Universidade",
-  "Ano",
-  "Função",
-  "Grupo Natureza",
-  "Origem Recursos",
-  "Orçamento LOA (R$)",
-  "Total Orçamentário Até Mês (R$)",
-  "Total Orçamentário No Mês (R$)",
-  "Disp. Orçamentária Até Mês (R$)",
-  "Disp. Orçamentária No Mês (R$)",
-  "Empenhado Até Mês (R$)",
-  "Empenhado No Mês (R$)",
-  "Liquidado Até Mês (R$)",
-  "Liquidado No Mês (R$)",
-  "Pago Até Mês (R$)",
-  "Pago No Mês (R$)",
-];
 
-const COLUMN_KEY_MAP = {
-  Universidade: "universidade",
-  Ano: "ano",
-  Função: "funcao",
-  "Grupo Natureza": "grupo_natureza",
-  "Origem Recursos": "origem_recursos",
-  "Orçamento LOA (R$)": "orcamento_loa",
-  "Total Orçamentário Até Mês (R$)": "total_orcamentario_ate_mes",
-  "Total Orçamentário No Mês (R$)": "total_orcamentario_no_mes",
-  "Disp. Orçamentária Até Mês (R$)": "disponibilidade_orcamentaria_ate_mes",
-  "Disp. Orçamentária No Mês (R$)": "disponibilidade_orcamentaria_no_mes",
-  "Empenhado Até Mês (R$)": "empenhado_ate_mes",
-  "Empenhado No Mês (R$)": "empenhado_no_mes",
-  "Liquidado Até Mês (R$)": "liquidado_ate_mes",
-  "Liquidado No Mês (R$)": "liquidado_no_mes",
-  "Pago Até Mês (R$)": "pago_ate_mes",
-  "Pago No Mês (R$)": "pago_no_mes",
-};
+
 
 export const ResultsViewer = memo(function ResultsViewer({
   dados,
@@ -258,21 +224,19 @@ export const ResultsViewer = memo(function ResultsViewer({
         <div className="flex gap-2">
           <button
             onClick={() => handleVisualizacaoChangeWithTransition("tabela")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              tipoVisualizacao === "tabela"
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${tipoVisualizacao === "tabela"
                 ? "bg-blue-600 text-white shadow-lg"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
+              }`}
           >
             Tabela
           </button>
           <button
             onClick={() => handleVisualizacaoChangeWithTransition("grafico")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              tipoVisualizacao === "grafico"
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${tipoVisualizacao === "grafico"
                 ? "bg-blue-600 text-white shadow-lg"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
+              }`}
           >
             Gráfico
           </button>
@@ -325,8 +289,7 @@ export const ResultsViewer = memo(function ResultsViewer({
               <Suspense fallback={<LoadingFallback />}>
                 <Table
                   items={dadosTabela}
-                  columns={TABLE_COLUMNS}
-                  keyMap={COLUMN_KEY_MAP}
+                  columns={columns} // <--- AQUI ESTÁ O USO DO ARQUIVO NOVO
                   itemsPerPage={itemsPerPage}
                   tableType="comparacao"
                   hideFilters={true}

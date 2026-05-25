@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useMemo, useCallback } from "react";
+import { useTourStore } from "../store/useTourStore"; // Ajuste o caminho
 
 interface TourStep {
   id: string;
@@ -10,38 +11,22 @@ interface TourStep {
 }
 
 export function useTour(tourKey: string, steps: TourStep[]) {
-  const [isActive, setIsActive] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [completedTours, setCompletedTours] = useState<string[]>([]);
-  const [startedThisSession, setStartedThisSession] = useState<Set<string>>(
-    new Set()
-  );
-  const [skippedTours, setSkippedTours] = useState<string[]>([]);
+  // Acessando o estado do Zustand
+  const store = useTourStore();
+  
+  const isActive = store.activeTourKey === tourKey;
+  const currentStep = store.currentStep;
+  const completedTours = store.completedTours;
+  const skippedTours = store.skippedTours;
 
-  // Carregar tours completados do localStorage
-  useEffect(() => {
-    const completed = localStorage.getItem("completedTours");
-    const skipped = localStorage.getItem("skippedTours");
-
-    if (completed) {
-      setCompletedTours(JSON.parse(completed));
-    }
-    if (skipped) {
-      setSkippedTours(JSON.parse(skipped));
-    }
-  }, []);
-
-  // Verificar se é primeira visita do usuário (nenhum tour completado)
   const isFirstTimeUser = useMemo(() => {
     return completedTours.length === 0 && skippedTours.length === 0;
   }, [completedTours, skippedTours]);
 
-  // Verificar se este tour específico foi completado
   const isTourCompleted = useMemo(() => {
     return completedTours.includes(tourKey) || skippedTours.includes(tourKey);
   }, [completedTours, skippedTours, tourKey]);
 
-  // Filtrar steps com base em suas condições
   const availableSteps = useMemo(() => {
     return steps.filter((step) => {
       if (!step.condition) return true;
@@ -55,186 +40,25 @@ export function useTour(tourKey: string, steps: TourStep[]) {
 
   const totalSteps = availableSteps.length;
 
-  // Iniciar tour - agora aceita parâmetro para forçar início
-  const startTour = useCallback(
-    (force: boolean = false) => {
-      console.log(`Tentando iniciar tour ${tourKey}`, { force });
-
-      // Se force=true, sempre inicia
-      if (force) {
-        console.log(`Forçando início do tour ${tourKey}`);
-        setIsActive(true);
-        setCurrentStep(0);
-        setStartedThisSession((prev) => new Set(prev).add(tourKey));
-        return;
-      }
-
-      // Verificar se já foi iniciado nesta sessão (comportamento normal)
-      if (startedThisSession.has(tourKey)) {
-        console.log(`Tour ${tourKey} já foi iniciado nesta sessão`);
-        return;
-      }
-
-      // Verificar se já foi completado ou pulado
-      if (completedTours.includes(tourKey) || skippedTours.includes(tourKey)) {
-        console.log(
-          `Tour ${tourKey} já foi completado ou pulado anteriormente`
-        );
-        return;
-      }
-
-      console.log(`Iniciando tour ${tourKey}`);
-      setIsActive(true);
-      setCurrentStep(0);
-      setStartedThisSession((prev) => new Set(prev).add(tourKey));
-    },
-    [tourKey, startedThisSession, completedTours, skippedTours]
-  );
-
-  const nextStep = useCallback(() => {
-    if (currentStep < totalSteps - 1) {
-      setCurrentStep((prev) => prev + 1);
-    } else {
-      // Tour completo
-      const newCompleted = [...completedTours, tourKey];
-      setCompletedTours(newCompleted);
-      localStorage.setItem("completedTours", JSON.stringify(newCompleted));
-      setIsActive(false);
-      setCurrentStep(0);
-    }
-  }, [currentStep, totalSteps, tourKey, completedTours]);
-
-  const prevStep = useCallback(() => {
-    if (currentStep > 0) {
-      setCurrentStep((prev) => prev - 1);
-    }
-  }, [currentStep]);
-
-  const skipTour = useCallback(() => {
-    const newCompleted = [...completedTours, tourKey];
-    setCompletedTours(newCompleted);
-    localStorage.setItem("completedTours", JSON.stringify(newCompleted));
-    setIsActive(false);
-    setCurrentStep(0);
-  }, [tourKey, completedTours]);
-
-  const closeTour = useCallback(() => {
-    setIsActive(false);
-    setCurrentStep(0);
-  }, []);
-
-  const cancelTour = useCallback(() => {
-    setIsActive(false);
-    setCurrentStep(0);
-  }, []);
-
+  // Envelopando ações para não precisar passar o tourKey em todos os componentes
+  const startTour = useCallback((force: boolean = false) => store.startTour(tourKey, force), [store, tourKey]);
+  const nextStep = useCallback(() => store.nextStep(totalSteps, tourKey), [store, totalSteps, tourKey]);
+  const skipTour = useCallback(() => store.skipTour(tourKey), [store, tourKey]);
+  const restartTour = useCallback(() => store.restartTour(tourKey), [store, tourKey]);
+  
   const skipAllTours = useCallback(() => {
     const allTourKeys = [
-      "mainPage",
-      "calculadoraIPCA",
-      "seriesIPCA",
-      "consulta_intro",
-      "consulta_formulario",
-      "consulta_carregamento",
-      "consulta_resultados",
-      "consulta_tabela",
-      "consulta_graficos",
-      "consulta_exportacao",
-      "consulta_correcao",
-      "helpPage",
-      "aboutPage",
-      "contactPage",
+      "mainPage", "calculadoraIPCA", "seriesIPCA", "consulta_intro",
+      "consulta_formulario", "consulta_carregamento", "consulta_resultados",
+      "consulta_tabela", "consulta_graficos", "consulta_exportacao",
+      "consulta_correcao", "helpPage", "aboutPage", "contactPage",
     ];
-
-    setSkippedTours(allTourKeys);
-    localStorage.setItem("skippedTours", JSON.stringify(allTourKeys));
-    setIsActive(false);
-    setCurrentStep(0);
-  }, []);
-
-  const restartTour = useCallback(() => {
-    const newCompleted = completedTours.filter((key) => key !== tourKey);
-    const newSkipped = skippedTours.filter((key) => key !== tourKey);
-
-    setCompletedTours(newCompleted);
-    setSkippedTours(newSkipped);
-    localStorage.setItem("completedTours", JSON.stringify(newCompleted));
-    localStorage.setItem("skippedTours", JSON.stringify(newSkipped));
-
-    // Remover da lista de iniciados nesta sessão
-    setStartedThisSession((prev) => {
-      const newSet = new Set(prev);
-      newSet.delete(tourKey);
-      return newSet;
-    });
-
-    // Iniciar o tour imediatamente
-    setTimeout(() => {
-      startTour(true);
-    }, 100);
-  }, [tourKey, completedTours, skippedTours, startTour]);
+    store.skipAllTours(allTourKeys);
+  }, [store]);
 
   const restartAllTours = useCallback(() => {
-    setCompletedTours([]);
-    setSkippedTours([]);
-    setStartedThisSession(new Set());
-    localStorage.removeItem("completedTours");
-    localStorage.removeItem("skippedTours");
-
-    // Iniciar tour de introdução se for consulta
-    setTimeout(() => {
-      if (tourKey.startsWith("consulta_")) {
-        startTour(true);
-      }
-    }, 100);
-  }, [tourKey, startTour]);
-
-  // Nova função para alternar status do tour
-  const toggleTourStatus = useCallback(
-    (targetTourKey: string, shouldBeCompleted: boolean) => {
-      console.log(
-        ` Alternando status do tour ${targetTourKey} para ${
-          shouldBeCompleted ? "completo" : "pendente"
-        }`
-      );
-
-      if (shouldBeCompleted) {
-        // Adicionar aos completados
-        const newCompleted = Array.from(
-          new Set([...completedTours, targetTourKey])
-        );
-        setCompletedTours(newCompleted);
-        localStorage.setItem("completedTours", JSON.stringify(newCompleted));
-
-        // Remover dos pulados se existir
-        const newSkipped = skippedTours.filter((key) => key !== targetTourKey);
-        setSkippedTours(newSkipped);
-        localStorage.setItem("skippedTours", JSON.stringify(newSkipped));
-      } else {
-        // Remover dos completados
-        const newCompleted = completedTours.filter(
-          (key) => key !== targetTourKey
-        );
-        setCompletedTours(newCompleted);
-        localStorage.setItem("completedTours", JSON.stringify(newCompleted));
-
-        // Remover dos pulados
-        const newSkipped = skippedTours.filter((key) => key !== targetTourKey);
-        setSkippedTours(newSkipped);
-        localStorage.setItem("skippedTours", JSON.stringify(newSkipped));
-
-        // Remover da lista de iniciados nesta sessão
-        setStartedThisSession((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(targetTourKey);
-          return newSet;
-        });
-      }
-    },
-    [completedTours, skippedTours]
-  );
-
-  const completedToursCount = completedTours.length;
+    store.restartAllTours(tourKey.startsWith("consulta_"), tourKey);
+  }, [store, tourKey]);
 
   return {
     isActive,
@@ -243,16 +67,16 @@ export function useTour(tourKey: string, steps: TourStep[]) {
     currentStepData,
     startTour,
     nextStep,
-    prevStep,
+    prevStep: store.prevStep,
     skipTour,
-    closeTour,
-    cancelTour,
+    closeTour: store.closeTour,
+    cancelTour: store.cancelTour,
     skipAllTours,
     restartTour,
     restartAllTours,
-    toggleTourStatus,
+    toggleTourStatus: store.toggleTourStatus,
     completedTours,
-    completedToursCount,
+    completedToursCount: completedTours.length,
     isFirstTimeUser,
     isTourCompleted,
   };

@@ -1,59 +1,57 @@
-import type{ FormData } from "../types/calculadora";
+// utils/validation.ts
+import { z } from "zod";
 
-interface ValidationResult {
-  isValid: boolean;
-  message?: string;
-}
+export const createCalculadoraSchema = (mesAtual: number, anoAtual: number) => {
+  return z
+    .object({
+      valor: z.coerce
+        .number({ message: "Por favor, insira um valor válido." })
+        .positive("O valor deve ser maior que zero."),
+      mesInicial: z.string().min(1, "Mês inicial é obrigatório"),
+      anoInicial: z.string().min(1, "Ano inicial é obrigatório"),
+      mesFinal: z.string().min(1, "Mês final é obrigatório"),
+      anoFinal: z.string().min(1, "Ano final é obrigatório"),
+    })
+    .superRefine((data, ctx) => {
+      // Validar restrição de dezembro de 1979
+      if (data.anoInicial === "1979" && data.mesInicial !== "12") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Apenas o mês de dezembro de 1979 é permitido.",
+          path: ["mesInicial"],
+        });
+      }
+      if (data.anoFinal === "1979" && data.mesFinal !== "12") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Apenas o mês de dezembro de 1979 é permitido.",
+          path: ["mesFinal"],
+        });
+      }
 
-export function validateCalculatorInput(
-  formData: FormData,
-  mesAtual: number,
-  anoAtual: number
-): ValidationResult {
-  // Validar valor monetário
-  if (isNaN(Number(formData.valor)) || Number(formData.valor) <= 0) {
-    return {
-      isValid: false,
-      message: "Por favor, insira um valor válido.",
-    };
-  }
+      // Validar disponibilidade de IPCA para meses recentes
+      if (
+        data.anoInicial === anoAtual.toString() &&
+        parseInt(data.mesInicial) > mesAtual - 2
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Ainda não foi disponibilizado o IPCA para este mês.",
+          path: ["mesInicial"],
+        });
+      }
+      if (
+        data.anoFinal === anoAtual.toString() &&
+        parseInt(data.mesFinal) > mesAtual - 2
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Ainda não foi disponibilizado o IPCA para este mês.",
+          path: ["mesFinal"],
+        });
+      }
+    });
+};
 
-  // Validar preenchimento de todos os campos
-  if (
-    !formData.mesInicial ||
-    !formData.anoInicial ||
-    !formData.mesFinal ||
-    !formData.anoFinal
-  ) {
-    return {
-      isValid: false,
-      message: "Por favor, preencha todos os campos.",
-    };
-  }
-
-  // Validar restrição de dezembro de 1979
-  if (
-    (formData.anoFinal === "1979" && formData.mesFinal !== "12") ||
-    (formData.anoInicial === "1979" && formData.mesInicial !== "12")
-  ) {
-    return {
-      isValid: false,
-      message: "Apenas o mês de dezembro de 1979 é permitido.",
-    };
-  }
-
-  // Validar disponibilidade de IPCA para meses recentes
-  if (
-    (formData.anoInicial === anoAtual.toString() &&
-      parseInt(formData.mesInicial) > mesAtual - 2) ||
-    (formData.anoFinal === anoAtual.toString() &&
-      parseInt(formData.mesFinal) > mesAtual - 2)
-  ) {
-    return {
-      isValid: false,
-      message: "Ainda não foi disponibilizado o IPCA para esses meses.",
-    };
-  }
-
-  return { isValid: true };
-}
+// Extrai a tipagem automaticamente do Zod
+export type CalculadoraFormData = z.infer<ReturnType<typeof createCalculadoraSchema>>;
